@@ -1,0 +1,12 @@
+{
+  "functions": {
+    "api/index.py": {
+      "includeFiles": "data.xlsx.gz",
+      "maxDuration": 30
+    }
+  },
+  "rewrites": [
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/api/(.*)", "destination": "/api/index.py" }
+  ]
+}
