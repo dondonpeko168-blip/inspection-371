@@ -17,7 +17,7 @@ header .sub { font-size: 13px; opacity: .8; }
 .sidebar .card { padding: 14px; }
 .search-box input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
 .search-box input:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,.15); }
-.check-item-list { max-height: 400px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 8px; }
+.check-item-list { max-height: 350px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 8px; }
 .check-item-list label { display: flex; align-items: flex-start; gap: 6px; padding: 5px 10px; font-size: 12px; font-weight: 400; cursor: pointer; border-bottom: 1px solid #f0f2f5; line-height: 1.4; word-break: break-all; }
 .check-item-list label:hover { background: #f0f7ff; }
 .check-item-list label input { margin-top: 2px; flex-shrink: 0; }
@@ -28,15 +28,17 @@ header .sub { font-size: 13px; opacity: .8; }
 .btn-primary:hover { background: #1557b0; }
 .btn-outline { background: #fff; color: #555; border: 1px solid #ddd !important; }
 .btn-outline:hover { background: #f5f5f5; }
+.btn-download { background: #e8710a; color: #fff; }
+.btn-download:hover { background: #c96208; }
 .stats-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 13px; color: #666; align-items: center; }
 .stats-bar strong { color: #1c1e21; }
-.result-table-wrap { overflow-x: auto; max-height: 72vh; overflow-y: auto; }
+.result-table-wrap { overflow-x: auto; max-height: 58vh; overflow-y: auto; }
 .result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .result-table th { position: sticky; top: 0; background: #f8f9fa; padding: 8px 6px; border-bottom: 2px solid #e4e6eb; text-align: left; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; z-index: 2; }
 .result-table th:hover { background: #e8f0fe; }
-.result-table td { padding: 6px 4px; border-bottom: 1px solid #f0f2f5; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-table td { padding: 6px 4px; border-bottom: 1px solid #f0f2f5; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .result-table tr:hover td { background: #f0f7ff; }
-.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 12px 0; font-size: 13px; flex-wrap: wrap; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 0; font-size: 13px; flex-wrap: wrap; }
 .pagination button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
 .pagination button:hover:not(:disabled) { background: #e8f0fe; }
 .pagination button:disabled { opacity: .4; cursor: not-allowed; }
@@ -46,6 +48,13 @@ header .sub { font-size: 13px; opacity: .8; }
 .item-pagination { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; font-size: 11px; color: #888; }
 .item-pagination button { padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px; }
 .item-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.upload-info { border: 1px dashed #34a853; border-radius: 8px; padding: 10px; font-size: 12px; color: #2d8f47; background: #e8f5e9; margin-top: 8px; }
+.col-selector { max-height: 300px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 6px; }
+.col-selector label { display: flex; align-items: center; gap: 5px; padding: 4px 8px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f0f2f5; }
+.col-selector label:hover { background: #f0f7ff; }
+.col-selector .col-all { position: sticky; top: 0; background: #f8f9fa; padding: 5px 8px; font-size: 11px; font-weight: 500; border-bottom: 1px solid #e4e6eb; display: flex; align-items: center; gap: 5px; z-index: 1; }
+.download-actions { display: flex; gap: 6px; margin-top: 6px; }
+.download-actions button { flex: 1; padding: 6px 10px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; font-weight: 500; }
 </style>
 </head>
 <body>
@@ -57,6 +66,22 @@ header .sub { font-size: 13px; opacity: .8; }
 
 <div class="container">
   <aside class="sidebar">
+    <div class="card">
+      <h3>📤 更新 Excel 資料</h3>
+      <div class="upload-info">
+        <span>若要上傳新的 .xlsx 檔案，請直接將檔案傳給 Hermes Agent，我會幫你從伺服器端上傳。</span>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📋 選擇欄位 <span id="colCount" style="font-size:11px;background:#e8f0fe;color:#1a73e8;border-radius:8px;padding:1px 6px;"></span></h3>
+      <div class="col-selector" id="colSelector"></div>
+      <div class="download-actions">
+        <button class="btn-download" onclick="downloadFile('xlsx')">⬇ 下載 XLSX</button>
+        <button class="btn-download" onclick="downloadFile('csv')">⬇ 下載 CSV</button>
+      </div>
+    </div>
+
     <div class="card">
       <h3>🔍 檢查項目篩選 <span id="itemTotal" style="font-size:11px;background:#e8f0fe;color:#1a73e8;border-radius:8px;padding:1px 6px;"></span></h3>
       <div class="search-box">
@@ -80,7 +105,7 @@ header .sub { font-size: 13px; opacity: .8; }
       <div class="stats-bar">
         <span>📊 總筆數：<strong id="statTotal">0</strong></span>
         <span>🔎 篩選後：<strong id="statFiltered">0</strong></span>
-        <span>📋 欄位：<strong id="statCols">37</strong></span>
+        <span>📋 顯示欄位：<strong id="statCols">0</strong></span>
         <span id="loadingSpinner" style="display:none"><span class="spinner"></span> 查詢中…</span>
       </div>
       <div class="result-table-wrap">
@@ -100,10 +125,17 @@ const PAGE_SIZE = 100;
 const ITEM_PAGE = 200;
 const HEADERS = ["系統別","工項名稱","工項編號","檢修週期","派工日期","派工單號","檢修狀態","檢修單位","表單代號","表單名稱","表單編號","表單版次","車號/最小成本單位","進階分類1名稱","進階分類2名稱","檢查項目","檢查項目備註","設備編號","設備子編號","儀器編號","下限值","下限警戒值","上限警戒值","上限值","單位","異常","異常照片","檢查結果","備註","異常原因","處理對策","處理說明","報修單號","檢查時間","檢查人員","複查時間","督導/SCI"];
 
-let totalRows = 0, totalItems = 0, filteredTotal = 0;
+let totalRows = 0, totalItems = 0;
 let cacheItems = [], selectedItems = new Set();
 let searchQuery = '', curItemPage = 0;
 let curPage = 0, totalPages = 0;
+/* Column selection: null = all; otherwise sorted array of indices */
+let selectedCols = null;
+/* Snapshot of selectedItems taken at the time applyFilter() was last called.
+   downloadFile() uses this snapshot to avoid picking up items toggled after
+   the filter was applied (e.g. from the init-set which adds 200 items to
+   selectedItems but were never visible in the current search). */
+let appliedItems = null;
 
 async function api(path, qs) {
   const url = API_BASE + path + (qs ? '?' + new URLSearchParams(qs) : '');
@@ -118,25 +150,89 @@ async function init() {
     totalItems = d.total_items;
     cacheItems = d.check_items;
     selectedItems = new Set(d.check_items);
-    document.getElementById('headerInfo').textContent = `📊 ${totalRows.toLocaleString()} 筆 · ${totalItems.toLocaleString()} 種檢查項目 · 37 欄`;
+    updateHeaderInfo();
     document.getElementById('itemTotal').textContent = totalItems.toLocaleString();
-    document.getElementById('tableHead').innerHTML = '<tr>' + HEADERS.map((h,i) => `<th onclick="sortBy(${i})">${esc(h)}</th>`).join('') + '</tr>';
+    selectedCols = null;
+    renderColSelector();
+    renderTableHead();
     await renderItems();
     await queryData(0);
   } catch(e) { document.getElementById('headerInfo').textContent = '⚠️ 載入失敗'; }
 }
 init();
 
+function updateHeaderInfo() {
+  document.getElementById('headerInfo').textContent =
+    `📊 ${totalRows.toLocaleString()} 筆 · ${totalItems.toLocaleString()} 種檢查項目 · 37 欄`;
+}
+
+/* Returns the currently active column indices (sorted) */
+function getCols() {
+  return selectedCols || HEADERS.map((_, i) => i);
+}
+
+function renderColSelector() {
+  const cols = getCols();
+  const colSet = new Set(cols);
+  const el = document.getElementById('colSelector');
+  let html = `<div class="col-all"><input type="checkbox" id="colAll" ${!selectedCols?'checked':''} onchange="toggleAllCols()"> <label for="colAll" style="padding:0;display:inline">全選 (${cols.length}/${HEADERS.length})</label></div>`;
+  HEADERS.forEach((h, i) => {
+    html += `<label><input type="checkbox" ${colSet.has(i)?'checked':''} data-ci="${i}" onchange="togCol(${i}, this.checked)"> ${esc(h)}</label>`;
+  });
+  el.innerHTML = html;
+  const cnt = cols.length;
+  document.getElementById('colCount').textContent = `${cnt}/${HEADERS.length}`;
+  document.getElementById('statCols').textContent = cnt;
+}
+
+/* Called directly with index + checked state (no DOM lookup) */
+function togCol(idx, checked) {
+  let cols = getCols();
+  if (checked) {
+    if (!cols.includes(idx)) cols.push(idx);
+  } else {
+    cols = cols.filter(c => c !== idx);
+  }
+  // If all selected, use null for simpler downstream logic
+  selectedCols = (cols.length === HEADERS.length) ? null : cols.sort((a,b) => a-b);
+  const cnt = cols.length;
+  document.getElementById('colCount').textContent = `${cnt}/${HEADERS.length}`;
+  document.getElementById('statCols').textContent = cnt;
+  document.getElementById('colAll').checked = !selectedCols;
+  refreshTableDisplay();
+  /* Note: we do NOT re-render colSelector checkboxes here to avoid losing focus.
+     The checkboxes already reflect the correct state via onchange. */
+}
+
+function toggleAllCols() {
+  selectedCols = document.getElementById('colAll').checked ? null : [0];
+  renderColSelector();
+  refreshTableDisplay();
+}
+
+function refreshTableDisplay() {
+  renderTableHead();
+  const tb = document.getElementById('tableBody');
+  if (tb._rows && tb._rows.length > 0) {
+    tb.innerHTML = tb._rows.map(r => '<tr>'+r.map(c => `<td title="${esc(c)}">${esc(c)}</td>`).join('')+'</tr>').join('');
+  }
+}
+
+function renderTableHead() {
+  const cols = getCols();
+  document.getElementById('tableHead').innerHTML = '<tr>' +
+    cols.map((hi, di) => `<th data-di="${di}" onclick="sortBy(${di})">${esc(HEADERS[hi])}</th>`).join('') + '</tr>';
+}
+
 async function renderItems() {
   const offset = curItemPage * ITEM_PAGE;
   const q = { q: searchQuery, offset: String(offset), limit: String(ITEM_PAGE) };
   const d = await api('/items', q);
-  filteredTotal = d.total;
   const el = document.getElementById('itemList');
   let html = `<div class="select-all"><input type="checkbox" id="selAll" ${selectedItems.size===d.total&&d.total>0?'checked':''} onchange="toggleAll()"> <label for="selAll" style="padding:0;font-weight:500;display:inline">全選 (${selectedItems.size}/${d.total})</label></div>`;
   for (const item of d.items) {
     const ch = selectedItems.has(item) ? 'checked' : '';
-    html += `<label><input type="checkbox" ${ch} data-t="${esc(item)}" onchange="tog(this)"> ${esc(item)}</label>`;
+    html += `<label><input type="checkbox" ${ch} data-t="${esc(item)}" onchange="togCheckItem(this)"> ${esc(item)}</label>`;
   }
   el.innerHTML = html;
   const s = offset+1, e = Math.min(offset+d.items.length, d.total);
@@ -145,28 +241,51 @@ async function renderItems() {
   document.getElementById('nextItems').disabled = offset + d.items.length >= d.total;
 }
 
-function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function tog(el) { const v = el.getAttribute('data-t'); el.checked ? selectedItems.add(v) : selectedItems.delete(v); }
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function togCheckItem(el) { const v = el.getAttribute('data-t'); el.checked ? selectedItems.add(v) : selectedItems.delete(v); }
 function toggleAll() {
   const ch = document.getElementById('selAll').checked;
   document.querySelectorAll('#itemList input[data-t]').forEach(el => { el.checked = ch; const v = el.getAttribute('data-t'); ch ? selectedItems.add(v) : selectedItems.delete(v); });
 }
-async function nextItemPage() { if ((curItemPage+1)*ITEM_PAGE < filteredTotal) { curItemPage++; await renderItems(); } }
+async function nextItemPage() {
+  const d = await api('/items', {q: searchQuery, offset: String((curItemPage+1)*ITEM_PAGE), limit: String(ITEM_PAGE)});
+  if (d.items && d.items.length > 0) { curItemPage++; await renderItems(); }
+}
 async function prevItemPage() { if (curItemPage>0) { curItemPage--; await renderItems(); } }
 let st;
 function debounceSearch() { clearTimeout(st); st = setTimeout(async()=>{ searchQuery = document.getElementById('searchInput').value.trim(); curItemPage=0; await renderItems(); }, 300); }
 
-async function applyFilter() { setLoad(true); await queryData(0); setLoad(false); }
-async function clearFilter() { searchQuery=''; document.getElementById('searchInput').value=''; curItemPage=0; selectedItems=new Set(cacheItems); await renderItems(); setLoad(true); await queryData(0); setLoad(false); }
+async function applyFilter() {
+  // Build selectedItems from currently visible checked items
+  const newSet = new Set();
+  document.querySelectorAll('#itemList input[data-t]:checked').forEach(el => newSet.add(el.getAttribute('data-t')));
+  selectedItems = newSet;
+  appliedItems = new Set(newSet);
+  setLoad(true);
+  await queryData(0);
+  setLoad(false);
+}
+async function clearFilter() { searchQuery=''; document.getElementById('searchInput').value=''; curItemPage=0; selectedItems=new Set(cacheItems); appliedItems=null; await renderItems(); setLoad(true); await queryData(0); setLoad(false); }
 
 async function queryData(page) {
-  if (!selectedItems.size) { document.getElementById('statFiltered').textContent='0'; document.getElementById('tableBody').innerHTML=''; document.getElementById('pagination').innerHTML=''; return; }
-  const d = await api('/query', { items: JSON.stringify(Array.from(selectedItems)), page: String(page) });
+  if (!selectedItems.size) {
+    document.getElementById('statFiltered').textContent='0';
+    document.getElementById('tableBody').innerHTML='';
+    document.getElementById('pagination').innerHTML='';
+    return;
+  }
+  const cols = getCols();
+  const d = await api('/query', {
+    items: JSON.stringify(Array.from(selectedItems)),
+    page: String(page),
+    cols: cols.join(',')
+  });
   curPage = d.page; totalPages = d.pages;
   document.getElementById('statTotal').textContent = totalRows.toLocaleString();
   document.getElementById('statFiltered').textContent = d.total.toLocaleString();
   const tb = document.getElementById('tableBody');
-  tb.innerHTML = d.rows.map(r => '<tr>'+Array.from({length:37},(_,i)=>r[i]||'').map(c => `<td title="${esc(c)}">${esc(c)}</td>`).join('')+'</tr>').join('');
+  tb._rows = d.rows;
+  tb.innerHTML = d.rows.map(r => '<tr>'+r.map(c => `<td title="${esc(c)}">${esc(c)}</td>`).join('')+'</tr>').join('');
   document.getElementById('pagination').innerHTML =
     `<button onclick="goPage(0)" ${curPage===0?'disabled':''}>◀◀</button>`+
     `<button onclick="goPage(${curPage-1})" ${curPage===0?'disabled':''}>◀</button>`+
@@ -174,13 +293,62 @@ async function queryData(page) {
     `<button onclick="goPage(${curPage+1})" ${curPage>=totalPages-1?'disabled':''}>▶</button>`+
     `<button onclick="goPage(${totalPages-1})" ${curPage>=totalPages-1?'disabled':''}>▶▶</button>`;
 }
+
 function goPage(n) { if (n<0||n>=totalPages) return; setLoad(true); queryData(n).then(()=>{ setLoad(false); document.querySelector('.result-table-wrap').scrollTop=0; }); }
 function setLoad(on) { document.getElementById('loadingSpinner').style.display = on ? 'inline' : 'none'; }
-function sortBy(i) {
+function sortBy(di) {
   const tb = document.getElementById('tableBody');
   const rows = Array.from(tb.querySelectorAll('tr'));
-  rows.sort((a,b) => { const va=a.cells[i]?.textContent||'', vb=b.cells[i]?.textContent||''; const na=parseFloat(va), nb=parseFloat(vb); if(!isNaN(na)&&!isNaN(nb)) return na-nb; return va.localeCompare(vb,'zh-TW'); });
+  rows.sort((a,b) => {
+    const va = a.cells[di]?.textContent || '';
+    const vb = b.cells[di]?.textContent || '';
+    const na = parseFloat(va), nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return va.localeCompare(vb, 'zh-TW');
+  });
   rows.forEach(r => tb.appendChild(r));
+}
+
+/* ── Download via POST (avoids URL length limits & browser popup blockers) ── */
+async function downloadFile(format) {
+  if (!selectedItems.size && !appliedItems) { alert('請先選取檢查項目'); return; }
+
+  // CRITICAL: Always use the snapshot from the last applyFilter() call.
+  // selectedItems may have been polluted by init() (200 items) or by
+  // subsequent checkbox toggles that added items beyond the current search.
+  // The snapshot is the ONLY reliable record of what the user actually filtered.
+  const itemsToExport = appliedItems || selectedItems;
+
+  if (!itemsToExport.size) { alert('套用篩選後沒有選取任何檢查項目'); return; }
+
+  const cols = getCols();
+  try {
+    const resp = await fetch(API_BASE + '/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: Array.from(itemsToExport),
+        cols: cols,
+        format: format
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      alert('下載失敗: ' + err);
+      return;
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inspection_export.' + format;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('下載失敗: ' + e.message);
+  }
 }
 </script>
 </body>
