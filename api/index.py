@@ -197,16 +197,17 @@ def api_export():
     conn.close()
 
     if export_format == "csv":
-        output = io.StringIO()
-        writer = csv.writer(output)
+        import codecs
+        output = io.BytesIO()
+        writer = csv.writer(codecs.getwriter("utf-8-sig")(output))
         writer.writerow(header_labels)
         for r in rows:
             writer.writerow(list(r))
-        csv_text = output.getvalue()
+        csv_bytes = output.getvalue()
         output.close()
         return Response(
-            csv_text,
-            mimetype="text/csv; charset=utf-8-sig",
+            csv_bytes,
+            mimetype="text/csv",
             headers={"Content-Disposition": "attachment; filename=inspection_export.csv"}
         )
     else:
