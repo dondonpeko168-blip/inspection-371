@@ -294,5 +294,5 @@ def catch_all(path):
     return send_from_directory("../", "index.html")
 
 
-# Vercel entry point
-handler = app
+# Vercel entry point - Flask app
+handler = app.wsgi_app

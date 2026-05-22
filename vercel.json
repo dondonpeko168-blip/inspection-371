@@ -1,12 +1,6 @@
 {
-  "buildCommand": "pip install --break-system-packages -r api/requirements.txt",
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "api/data.xlsx.gz"
-    }
-  },
   "rewrites": [
-    { "source": "/", "destination": "/api/index.py" },
-    { "source": "/api/(.*)", "destination": "/api/index.py" }
+    { "source": "/", "destination": "/index.html" },
+    { "source": "/api/(.*)", "destination": "/api/index" }
   ]
 }
