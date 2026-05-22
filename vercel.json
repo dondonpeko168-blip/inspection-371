@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/index.py": {
-      "includeFiles": "data.xlsx.gz"
+      "includeFiles": "data.xlsx.gz",
+      "runtime": "python3.12"
     }
   },
   "rewrites": [
