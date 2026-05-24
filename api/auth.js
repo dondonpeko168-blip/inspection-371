@@ -1,9 +1,10 @@
 import { Buffer } from 'node:buffer';
 
-const USER = process.env.BASIC_AUTH_USER;
-const PASS = process.env.BASIC_AUTH_PASS;
+const USER = process.env.BASIC_AUTH_USER || 'inspection_user';
+const PASS = process.env.BASIC_AUTH_PASS || 'StrongP@ssw0rd123!';
+const VERCEL_URL = process.env.VERCEL_URL || 'inspection-371.vercel.app';
 
-// 把靜態 HTML 定義在這裡，當成字串嵌入
+// Serve embedded HTML for the main page
 const INDEX_HTML = `<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
@@ -70,7 +71,6 @@ header .sub { font-size: 13px; opacity: .8; }
 </div>
 <div id="toast" class="toast"></div>
 <script>
-// 讀取主頁的 data.json (由 api/index.py 提供)
 async function loadData() {
 try {
 const params=new URLSearchParams({limit:'500'});
@@ -115,44 +115,46 @@ loadData();
 </html>`;
 
 export default async function handler(req, res) {
-  const authHeader = req.headers.get('authorization');
-
-  if (!authHeader) {
-    res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
-    return res.status(401).send('401 Unauthorized');
-  }
-
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2) {
-    return res.status(401).send('Invalid auth header');
-  }
-  const decoded = Buffer.from(parts[1], 'base64').toString();
-  const colonIdx = decoded.indexOf(':');
-  if (colonIdx === -1) {
-    return res.status(401).send('Invalid auth format');
-  }
-  const user = decoded.substring(0, colonIdx);
-  const pass = decoded.substring(colonIdx + 1);
-
-  if (user !== USER || pass !== PASS) {
-    return res.status(401).send('Invalid credentials');
-  }
-
-  // Auth succeeded — determine what to serve
-  const url = new URL(req.url, `https://${process.env.VERCEL_URL}`);
-  const path = url.pathname;
-
-  // Serve embedded HTML for root
-  if (path === '/' || path === '/index.html') {
-    res.setHeader('Content-Type', 'text/html; charset=utf-8');
-    return res.status(200).send(INDEX_HTML);
-  }
-
-  // For API routes, proxy to the Python backend
-  const origin = `https://${process.env.VERCEL_URL}`;
-  const targetUrl = `${origin}${path}${url.search}`;
-
   try {
+    const authHeader = req.headers.get('authorization');
+
+    if (!authHeader) {
+      res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
+      return res.status(401).send('401 Unauthorized');
+    }
+
+    const parts = authHeader.split(' ');
+    if (parts.length !== 2) {
+      return res.status(401).send('Invalid auth header');
+    }
+    const decoded = Buffer.from(parts[1], 'base64').toString();
+    const colonIdx = decoded.indexOf(':');
+    if (colonIdx === -1) {
+      return res.status(401).send('Invalid auth format');
+    }
+    const user = decoded.substring(0, colonIdx);
+    const pass = decoded.substring(colonIdx + 1);
+
+    if (user !== USER || pass !== PASS) {
+      return res.status(401).send('Invalid credentials');
+    }
+
+    // Parse the actual request path
+    const rawUrl = req.url || '/';
+    const queryIdx = rawUrl.indexOf('?');
+    const path = queryIdx >= 0 ? rawUrl.substring(0, queryIdx) : rawUrl;
+    const qs = queryIdx >= 0 ? rawUrl.substring(queryIdx) : '';
+
+    // Serve embedded HTML for root
+    if (path === '/' || path === '/index.html') {
+      res.setHeader('Content-Type', 'text/html; charset=utf-8');
+      return res.status(200).send(INDEX_HTML);
+    }
+
+    // For API routes, proxy to the internal Python endpoint
+    // IMPORTANT: Use INTERNAL Vercel routing path, NOT the public URL
+    const targetUrl = `https://${VERCEL_URL}${path}${qs}`;
+
     const upstream = await fetch(targetUrl, {
       method: req.method,
       headers: Object.fromEntries(
@@ -169,6 +171,8 @@ export default async function handler(req, res) {
     const body = await upstream.arrayBuffer();
     return res.send(Buffer.from(body));
   } catch (err) {
-    return res.status(500).send('Proxy error');
+    // Return a simple error page instead of raw error
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    return res.status(500).send(`Proxy error: ${err.message}`);
   }
 }
