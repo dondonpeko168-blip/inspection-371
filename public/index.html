@@ -1,0 +1,433 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>台北捷運371型電聯車 巡檢保養查詢</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Noto Sans TC", sans-serif; background: #f0f2f5; color: #1c1e21; }
+header { background: linear-gradient(135deg, #1a73e8, #1557b0); color: #fff; padding: 16px 24px; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 8px rgba(0,0,0,.15); }
+header h1 { font-size: 18px; font-weight: 600; margin-bottom: 2px; }
+header .sub { font-size: 13px; opacity: .8; }
+.container { max-width: 1400px; margin: 0 auto; padding: 16px; display: grid; grid-template-columns: 340px 1fr; gap: 16px; }
+.sidebar { position: sticky; top: 80px; align-self: start; }
+.card { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); padding: 16px; margin-bottom: 12px; }
+.card h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: #555; }
+.sidebar .card { padding: 14px; }
+.search-box input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
+.search-box input:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,.15); }
+.check-item-list { max-height: 350px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 8px; }
+.check-item-list label { display: flex; align-items: flex-start; gap: 6px; padding: 5px 10px; font-size: 12px; font-weight: 400; cursor: pointer; border-bottom: 1px solid #f0f2f5; line-height: 1.4; word-break: break-all; }
+.check-item-list label:hover { background: #f0f7ff; }
+.check-item-list label input { margin-top: 2px; flex-shrink: 0; }
+.check-item-list .select-all { position: sticky; top: 0; background: #f8f9fa; padding: 6px 10px; font-size: 12px; font-weight: 500; border-bottom: 1px solid #e4e6eb; display: flex; align-items: center; gap: 6px; z-index: 1; }
+.filter-actions { display: flex; gap: 8px; margin-top: 8px; }
+.filter-actions button { flex: 1; padding: 8px 12px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; }
+.btn-primary { background: #1a73e8; color: #fff; }
+.btn-primary:hover { background: #1557b0; }
+.btn-outline { background: #fff; color: #555; border: 1px solid #ddd !important; }
+.btn-outline:hover { background: #f5f5f5; }
+.btn-download { background: #e8710a; color: #fff; }
+.btn-download:hover { background: #c96208; }
+.stats-bar { display: flex; gap: 16px; flex-wrap: wrap; margin-bottom: 12px; font-size: 13px; color: #666; align-items: center; }
+.stats-bar strong { color: #1c1e21; }
+.result-table-wrap { overflow-x: auto; max-height: 58vh; overflow-y: auto; }
+.result-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.result-table th { position: sticky; top: 0; background: #f8f9fa; padding: 8px 6px; border-bottom: 2px solid #e4e6eb; text-align: left; font-weight: 600; white-space: nowrap; cursor: pointer; user-select: none; z-index: 2; }
+.result-table th:hover { background: #e8f0fe; }
+.result-table td { padding: 6px 4px; border-bottom: 1px solid #f0f2f5; max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.result-table tr:hover td { background: #f0f7ff; }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 8px 0; font-size: 13px; flex-wrap: wrap; }
+.pagination button { padding: 6px 14px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; }
+.pagination button:hover:not(:disabled) { background: #e8f0fe; }
+.pagination button:disabled { opacity: .4; cursor: not-allowed; }
+@media (max-width: 768px) { .container { grid-template-columns: 1fr; } .sidebar { position: static; } }
+.spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #ddd; border-top-color: #1a73e8; border-radius: 50%; animation: spin .6s linear infinite; vertical-align: middle; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.item-pagination { display: flex; justify-content: space-between; align-items: center; padding: 4px 10px; font-size: 11px; color: #888; }
+.item-pagination button { padding: 2px 8px; border: 1px solid #ddd; border-radius: 4px; background: #fff; cursor: pointer; font-size: 11px; }
+.item-pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.upload-info { border: 1px dashed #34a853; border-radius: 8px; padding: 10px; font-size: 12px; color: #2d8f47; background: #e8f5e9; margin-top: 8px; }
+.col-selector { max-height: 300px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 6px; }
+.col-selector label { display: flex; align-items: center; gap: 5px; padding: 4px 8px; font-size: 11px; cursor: pointer; border-bottom: 1px solid #f0f2f5; }
+.col-selector label:hover { background: #f0f7ff; }
+.col-selector .col-all { position: sticky; top: 0; background: #f8f9fa; padding: 5px 8px; font-size: 11px; font-weight: 500; border-bottom: 1px solid #e4e6eb; display: flex; align-items: center; gap: 5px; z-index: 1; }
+.download-actions { display: flex; gap: 6px; margin-top: 6px; }
+.download-actions button { flex: 1; padding: 6px 10px; border: none; border-radius: 5px; font-size: 12px; cursor: pointer; font-weight: 500; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🚇 台北捷運 371型電聯車 電子巡檢保養查詢</h1>
+  <div class="sub" id="headerInfo">載入中…</div>
+</header>
+
+<div class="container">
+  <aside class="sidebar">
+    <div class="card">
+      <h3>📤 更新 Excel 資料</h3>
+      <div class="upload-area" id="uploadArea" style="border:2px dashed #34a853;border-radius:8px;padding:12px;text-align:center;cursor:pointer;background:#f8fdf8;transition:background .2s;"
+           ondragover="event.preventDefault();this.style.background='#e8f5e9';" 
+           ondragleave="this.style.background='#f8fdf8';"
+           ondrop="handleDrop(event)">
+        <input type="file" id="fileInput" accept=".xlsx" style="display:none" onchange="handleFileSelect(event)">
+        <div onclick="document.getElementById('fileInput').click()">
+          <div style="font-size:28px;margin-bottom:4px">⬆</div>
+          <div style="font-size:13px;color:#2d8f47;font-weight:500">點擊或拖曳上傳 .xlsx</div>
+          <div style="font-size:11px;color:#888;margin-top:2px">支援 Excel 檔案</div>
+        </div>
+      </div>
+      <div id="uploadStatus" style="margin-top:8px;font-size:12px;display:none"></div>
+      <div id="uploadProgress" style="margin-top:6px;display:none">
+        <div style="background:#e0e0e0;border-radius:4px;height:6px;overflow:hidden">
+          <div id="progressBar" style="background:#34a853;height:100%;width:0%;transition:width .3s"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>📋 選擇欄位 <span id="colCount" style="font-size:11px;background:#e8f0fe;color:#1a73e8;border-radius:8px;padding:1px 6px;"></span></h3>
+      <div class="col-selector" id="colSelector"></div>
+      <div class="download-actions">
+        <button class="btn-download" onclick="downloadFile('xlsx')">⬇ 下載 XLSX</button>
+        <button class="btn-download" onclick="downloadFile('csv')">⬇ 下載 CSV</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>🔍 檢查項目篩選 <span id="itemTotal" style="font-size:11px;background:#e8f0fe;color:#1a73e8;border-radius:8px;padding:1px 6px;"></span></h3>
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="搜尋關鍵字…" oninput="debounceSearch()">
+      </div>
+      <div class="item-pagination">
+        <button id="prevItems" onclick="prevItemPage()">◀</button>
+        <span id="itemPageInfo" style="font-size:11px"></span>
+        <button id="nextItems" onclick="nextItemPage()">▶</button>
+      </div>
+      <div class="check-item-list" id="itemList"></div>
+      <div class="filter-actions">
+        <button class="btn-primary" onclick="applyFilter()">套用篩選</button>
+        <button class="btn-outline" onclick="clearFilter()">清除</button>
+      </div>
+    </div>
+  </aside>
+
+  <main>
+    <div class="card">
+      <div class="stats-bar">
+        <span>📊 總筆數：<strong id="statTotal">0</strong></span>
+        <span>🔎 篩選後：<strong id="statFiltered">0</strong></span>
+        <span>📋 顯示欄位：<strong id="statCols">0</strong></span>
+        <span id="loadingSpinner" style="display:none"><span class="spinner"></span> 查詢中…</span>
+      </div>
+      <div class="result-table-wrap">
+        <table class="result-table" id="resultTable">
+          <thead id="tableHead"></thead>
+          <tbody id="tableBody"></tbody>
+        </table>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </main>
+</div>
+
+<script>
+const API_BASE = '/api';
+const PAGE_SIZE = 100;
+const ITEM_PAGE = 200;
+const HEADERS = ["系統別","工項名稱","工項編號","檢修週期","派工日期","派工單號","檢修狀態","檢修單位","表單代號","表單名稱","表單編號","表單版次","車號/最小成本單位","進階分類1名稱","進階分類2名稱","檢查項目","檢查項目備註","設備編號","設備子編號","儀器編號","下限值","下限警戒值","上限警戒值","上限值","單位","異常","異常照片","檢查結果","備註","異常原因","處理對策","處理說明","報修單號","檢查時間","檢查人員","複查時間","督導/SCI"];
+
+let totalRows = 0, totalItems = 0;
+let cacheItems = [], selectedItems = new Set();
+let searchQuery = '', curItemPage = 0;
+let curPage = 0, totalPages = 0;
+/* Column selection: null = all; otherwise sorted array of indices */
+let selectedCols = null;
+/* Snapshot of selectedItems taken at the time applyFilter() was last called.
+   downloadFile() uses this snapshot to avoid picking up items toggled after
+   the filter was applied (e.g. from the init-set which adds 200 items to
+   selectedItems but were never visible in the current search). */
+let appliedItems = null;
+
+async function api(path, qs) {
+  const url = API_BASE + path + (qs ? '?' + new URLSearchParams(qs) : '');
+  const r = await fetch(url);
+  return r.json();
+}
+
+async function init() {
+  try {
+    const d = await api('/init');
+    totalRows = d.total;
+    totalItems = d.total_items;
+    cacheItems = d.check_items;
+    selectedItems = new Set(d.check_items);
+    updateHeaderInfo();
+    document.getElementById('itemTotal').textContent = totalItems.toLocaleString();
+    selectedCols = null;
+    renderColSelector();
+    renderTableHead();
+    await renderItems();
+    await queryData(0);
+  } catch(e) { document.getElementById('headerInfo').textContent = '⚠️ 載入失敗'; }
+}
+init();
+
+function updateHeaderInfo() {
+  document.getElementById('headerInfo').textContent =
+    `📊 ${totalRows.toLocaleString()} 筆 · ${totalItems.toLocaleString()} 種檢查項目 · 37 欄`;
+}
+
+/* Returns the currently active column indices (sorted) */
+function getCols() {
+  return selectedCols || HEADERS.map((_, i) => i);
+}
+
+function renderColSelector() {
+  const cols = getCols();
+  const colSet = new Set(cols);
+  const el = document.getElementById('colSelector');
+  let html = `<div class="col-all"><input type="checkbox" id="colAll" ${!selectedCols?'checked':''} onchange="toggleAllCols()"> <label for="colAll" style="padding:0;display:inline">全選 (${cols.length}/${HEADERS.length})</label></div>`;
+  HEADERS.forEach((h, i) => {
+    html += `<label><input type="checkbox" ${colSet.has(i)?'checked':''} data-ci="${i}" onchange="togCol(${i}, this.checked)"> ${esc(h)}</label>`;
+  });
+  el.innerHTML = html;
+  const cnt = cols.length;
+  document.getElementById('colCount').textContent = `${cnt}/${HEADERS.length}`;
+  document.getElementById('statCols').textContent = cnt;
+}
+
+/* Called directly with index + checked state (no DOM lookup) */
+function togCol(idx, checked) {
+  let cols = getCols();
+  if (checked) {
+    if (!cols.includes(idx)) cols.push(idx);
+  } else {
+    cols = cols.filter(c => c !== idx);
+  }
+  // If all selected, use null for simpler downstream logic
+  selectedCols = (cols.length === HEADERS.length) ? null : cols.sort((a,b) => a-b);
+  const cnt = cols.length;
+  document.getElementById('colCount').textContent = `${cnt}/${HEADERS.length}`;
+  document.getElementById('statCols').textContent = cnt;
+  document.getElementById('colAll').checked = !selectedCols;
+  refreshTableDisplay();
+  /* Note: we do NOT re-render colSelector checkboxes here to avoid losing focus.
+     The checkboxes already reflect the correct state via onchange. */
+}
+
+function toggleAllCols() {
+  selectedCols = document.getElementById('colAll').checked ? null : [0];
+  renderColSelector();
+  refreshTableDisplay();
+}
+
+function refreshTableDisplay() {
+  renderTableHead();
+  const tb = document.getElementById('tableBody');
+  if (tb._rows && tb._rows.length > 0) {
+    tb.innerHTML = tb._rows.map(r => '<tr>'+r.map(c => `<td title="${esc(c)}">${esc(c)}</td>`).join('')+'</tr>').join('');
+  }
+}
+
+function renderTableHead() {
+  const cols = getCols();
+  document.getElementById('tableHead').innerHTML = '<tr>' +
+    cols.map((hi, di) => `<th data-di="${di}" onclick="sortBy(${di})">${esc(HEADERS[hi])}</th>`).join('') + '</tr>';
+}
+
+async function renderItems() {
+  const offset = curItemPage * ITEM_PAGE;
+  const q = { q: searchQuery, offset: String(offset), limit: String(ITEM_PAGE) };
+  const d = await api('/items', q);
+  const el = document.getElementById('itemList');
+  let html = `<div class="select-all"><input type="checkbox" id="selAll" ${selectedItems.size===d.total&&d.total>0?'checked':''} onchange="toggleAll()"> <label for="selAll" style="padding:0;font-weight:500;display:inline">全選 (${selectedItems.size}/${d.total})</label></div>`;
+  for (const item of d.items) {
+    const ch = selectedItems.has(item) ? 'checked' : '';
+    html += `<label><input type="checkbox" ${ch} data-t="${esc(item)}" onchange="togCheckItem(this)"> ${esc(item)}</label>`;
+  }
+  el.innerHTML = html;
+  const s = offset+1, e = Math.min(offset+d.items.length, d.total);
+  document.getElementById('itemPageInfo').textContent = `${s}-${e} / ${d.total}`;
+  document.getElementById('prevItems').disabled = curItemPage <= 0;
+  document.getElementById('nextItems').disabled = offset + d.items.length >= d.total;
+}
+
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/\"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function togCheckItem(el) { const v = el.getAttribute('data-t'); el.checked ? selectedItems.add(v) : selectedItems.delete(v); }
+function toggleAll() {
+  const ch = document.getElementById('selAll').checked;
+  document.querySelectorAll('#itemList input[data-t]').forEach(el => { el.checked = ch; const v = el.getAttribute('data-t'); ch ? selectedItems.add(v) : selectedItems.delete(v); });
+}
+async function nextItemPage() {
+  const d = await api('/items', {q: searchQuery, offset: String((curItemPage+1)*ITEM_PAGE), limit: String(ITEM_PAGE)});
+  if (d.items && d.items.length > 0) { curItemPage++; await renderItems(); }
+}
+async function prevItemPage() { if (curItemPage>0) { curItemPage--; await renderItems(); } }
+let st;
+function debounceSearch() { clearTimeout(st); st = setTimeout(async()=>{ searchQuery = document.getElementById('searchInput').value.trim(); curItemPage=0; await renderItems(); }, 300); }
+
+async function applyFilter() {
+  // Build selectedItems from currently visible checked items
+  const newSet = new Set();
+  document.querySelectorAll('#itemList input[data-t]:checked').forEach(el => newSet.add(el.getAttribute('data-t')));
+  selectedItems = newSet;
+  appliedItems = new Set(newSet);
+  setLoad(true);
+  await queryData(0);
+  setLoad(false);
+}
+async function clearFilter() { searchQuery=''; document.getElementById('searchInput').value=''; curItemPage=0; selectedItems=new Set(cacheItems); appliedItems=null; await renderItems(); setLoad(true); await queryData(0); setLoad(false); }
+
+async function queryData(page) {
+  if (!selectedItems.size) {
+    document.getElementById('statFiltered').textContent='0';
+    document.getElementById('tableBody').innerHTML='';
+    document.getElementById('pagination').innerHTML='';
+    return;
+  }
+  const cols = getCols();
+  const d = await api('/query', {
+    items: JSON.stringify(Array.from(selectedItems)),
+    page: String(page),
+    cols: cols.join(',')
+  });
+  curPage = d.page; totalPages = d.pages;
+  document.getElementById('statTotal').textContent = totalRows.toLocaleString();
+  document.getElementById('statFiltered').textContent = d.total.toLocaleString();
+  const tb = document.getElementById('tableBody');
+  tb._rows = d.rows;
+  tb.innerHTML = d.rows.map(r => '<tr>'+r.map(c => `<td title="${esc(c)}">${esc(c)}</td>`).join('')+'</tr>').join('');
+  document.getElementById('pagination').innerHTML =
+    `<button onclick="goPage(0)" ${curPage===0?'disabled':''}>◀◀</button>`+
+    `<button onclick="goPage(${curPage-1})" ${curPage===0?'disabled':''}>◀</button>`+
+    `<span>第 ${curPage+1} / ${totalPages} 頁 (${d.total.toLocaleString()} 筆)</span>`+
+    `<button onclick="goPage(${curPage+1})" ${curPage>=totalPages-1?'disabled':''}>▶</button>`+
+    `<button onclick="goPage(${totalPages-1})" ${curPage>=totalPages-1?'disabled':''}>▶▶</button>`;
+}
+
+function goPage(n) { if (n<0||n>=totalPages) return; setLoad(true); queryData(n).then(()=>{ setLoad(false); document.querySelector('.result-table-wrap').scrollTop=0; }); }
+function setLoad(on) { document.getElementById('loadingSpinner').style.display = on ? 'inline' : 'none'; }
+function sortBy(di) {
+  const tb = document.getElementById('tableBody');
+  const rows = Array.from(tb.querySelectorAll('tr'));
+  rows.sort((a,b) => {
+    const va = a.cells[di]?.textContent || '';
+    const vb = b.cells[di]?.textContent || '';
+    const na = parseFloat(va), nb = parseFloat(vb);
+    if (!isNaN(na) && !isNaN(nb)) return na - nb;
+    return va.localeCompare(vb, 'zh-TW');
+  });
+  rows.forEach(r => tb.appendChild(r));
+}
+
+/* ── Download via POST (avoids URL length limits & browser popup blockers) ── */
+async function downloadFile(format) {
+  if (!selectedItems.size && !appliedItems) { alert('請先選取檢查項目'); return; }
+
+  // CRITICAL: Always use the snapshot from the last applyFilter() call.
+  // selectedItems may have been polluted by init() (200 items) or by
+  // subsequent checkbox toggles that added items beyond the current search.
+  // The snapshot is the ONLY reliable record of what the user actually filtered.
+  const itemsToExport = appliedItems || selectedItems;
+
+  if (!itemsToExport.size) { alert('套用篩選後沒有選取任何檢查項目'); return; }
+
+  const cols = getCols();
+  try {
+    const resp = await fetch(API_BASE + '/export', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        items: Array.from(itemsToExport),
+        cols: cols,
+        format: format
+      })
+    });
+    if (!resp.ok) {
+      const err = await resp.text();
+      alert('下載失敗: ' + err);
+      return;
+    }
+    const blob = await resp.blob();
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'inspection_export.' + format;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  } catch(e) {
+    alert('下載失敗: ' + e.message);
+  }
+}
+async function handleFileSelect(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  await uploadFile(file);
+}
+
+async function handleDrop(event) {
+  event.preventDefault();
+  const file = event.dataTransfer.files[0];
+  if (!file) return;
+  await uploadFile(file);
+}
+
+async function uploadFile(file) {
+  const uploadStatus = document.getElementById('uploadStatus');
+  const uploadProgress = document.getElementById('uploadProgress');
+  const progressBar = document.getElementById('progressBar');
+  
+  if (!file.name.endsWith('.xlsx')) {
+    uploadStatus.style.display = 'block';
+    uploadStatus.style.color = '#e74c3c';
+    uploadStatus.textContent = '❌ 僅支援 .xlsx 檔案';
+    return;
+  }
+  
+  uploadStatus.style.display = 'block';
+  uploadStatus.style.color = '#2d8f47';
+  uploadStatus.innerHTML = '📤 上傳中... ' + file.name;
+  uploadProgress.style.display = 'block';
+  progressBar.style.width = '0%';
+  
+  const formData = new FormData();
+  formData.append('file', file);
+  
+  try {
+    const response = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+    
+    progressBar.style.width = '100%';
+    
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(errorText || `HTTP ${response.status}`);
+    }
+    
+    const result = await response.json();
+    
+    if (result.success) {
+      uploadStatus.innerHTML = `✅ 上傳成功！<br>📊 ${result.rows?.toLocaleString() || '?'} 筆 · ${result.columns?.length || '?'} 欄<br>🆕 檔名: ${result.filename}`;
+      uploadStatus.style.color = '#2d8f47';
+    } else {
+      throw new Error(result.error || '未知錯誤');
+    }
+  } catch (error) {
+    uploadStatus.innerHTML = '❌ 上傳失敗: ' + (error.message || '請檢查網路連線');
+    uploadStatus.style.color = '#e74c3c';
+  } finally {
+    setTimeout(() => {
+      uploadProgress.style.display = 'none';
+    }, 2000);
+  }
+}
+
+</body>
+</html>

@@ -86,16 +86,18 @@ def api_init():
     if err_resp:
         return err_resp, err_code
 
-    total = conn.execute("SELECT COUNT(*) FROM inspection").fetchone()[0]
-    total_items = conn.execute("SELECT COUNT(DISTINCT c16) FROM inspection WHERE c16 != ''").fetchone()[0]
-    items = [r[0] for r in conn.execute("SELECT DISTINCT c16 FROM inspection WHERE c16 != '' ORDER BY c16 LIMIT 200")]
-    conn.close()
+    try:
+        cursor = conn.execute("SELECT COUNT(*) as total FROM inspection")
+        total = cursor.fetchone()["total"]
+    except Exception:
+        total = 0
 
+    headers = HEADERS
     return jsonify({
         "total": total,
-        "total_items": total_items,
-        "check_items": items,
-        "headers_count": 37
+        "headers": headers,
+        "page_size": PAGE_SIZE,
+        "item_page": ITEM_PAGE
     })
 
 
@@ -105,24 +107,16 @@ def api_items():
     if err_resp:
         return err_resp, err_code
 
-    q = request.args.get("q", "")
-    offset = int(request.args.get("offset", "0"))
-    limit = int(request.args.get("limit", str(ITEM_PAGE)))
+    q = request.args.get("q", "").strip()
+    page = int(request.args.get("page", 1))
+    offset = (page - 1) * ITEM_PAGE
+    limit = ITEM_PAGE
 
-    where = "WHERE c16 != ''"
-    params = []
-    if q:
-        where += " AND c16 LIKE ?"
-        params.append(f"%{q}%")
+    cursor = conn.execute("SELECT DISTINCT c16 FROM inspection LIMIT ? OFFSET ?", (limit, offset))
+    items = [row["c16"] for row in cursor.fetchall()]
 
-    total = conn.execute(f"SELECT COUNT(DISTINCT c16) FROM inspection {where}", params).fetchone()[0]
-    items = [r[0] for r in conn.execute(
-        f"SELECT DISTINCT c16 FROM inspection {where} ORDER BY c16 LIMIT ? OFFSET ?",
-        params + [limit, offset]
-    )]
-    conn.close()
-
-    return jsonify({"items": items, "total": total, "offset": offset})
+    pages = {"current": page, "items": items}
+    return jsonify(pages)
 
 
 @app.route("/api/query", methods=["GET", "OPTIONS"])
@@ -131,41 +125,46 @@ def api_query():
     if err_resp:
         return err_resp, err_code
 
-    items_json = request.args.get("items", None)
-    page = int(request.args.get("page", "0"))
-    cols_param = request.args.get("cols", None)
+    item = request.args.get("item", "").strip()
+    q = request.args.get("q", "").strip()
+    page = int(request.args.get("page", 1))
+    offset = (page - 1) * PAGE_SIZE
+    limit = PAGE_SIZE
 
-    if not items_json:
-        return jsonify({"rows": [], "total": 0, "page": 0, "pages": 0})
+    conditions = []
+    params = []
 
-    selected = json.loads(items_json) if isinstance(items_json, str) else items_json
-    if not selected:
-        return jsonify({"rows": [], "total": 0, "page": 0, "pages": 0})
+    if item:
+        conditions.append("c16 = ?")
+        params.append(item)
 
-    if cols_param:
-        col_indices = [int(x) for x in cols_param.split(",") if x.strip()]
-    else:
-        col_indices = list(range(37))
+    if q:
+        # Simple keyword search across searchable columns
+        like = f"%{q}%"
+        cols = ["c1", "c2", "c5", "c16", "c17", "c26", "c27", "c30"]
+        ors = " OR ".join([f"{c} LIKE ?" for c in cols])
+        conditions.append(f"({ors})")
+        params.extend([like] * len(cols))
 
-    sel_cols = ", ".join(f"c{i+1}" for i in col_indices)
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
 
-    placeholders = ",".join("?" * len(selected))
-    total = conn.execute(f"SELECT COUNT(*) FROM inspection WHERE c16 IN ({placeholders})", selected).fetchone()[0]
-    total_pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
-    if page >= total_pages:
-        page = total_pages - 1
+    cursor = conn.execute(f"SELECT COUNT(*) as total FROM inspection {where}", params)
+    total = cursor.fetchone()["total"]
 
-    rows = conn.execute(
-        f"SELECT {sel_cols} FROM inspection WHERE c16 IN ({placeholders}) ORDER BY rowid LIMIT ? OFFSET ?",
-        selected + [PAGE_SIZE, page * PAGE_SIZE]
-    ).fetchall()
-    conn.close()
+    query_sql = f"SELECT * FROM inspection {where} LIMIT ? OFFSET ?"
+    params.append(limit)
+    params.append(offset)
+    cursor = conn.execute(query_sql, params)
+
+    results = []
+    for row in cursor.fetchall():
+        results.append({k: row[k] for k in row.keys()})
 
     return jsonify({
-        "rows": [list(r) for r in rows],
         "total": total,
         "page": page,
-        "pages": total_pages
+        "per_page": limit,
+        "data": results
     })
 
 
@@ -175,89 +174,76 @@ def api_export():
     if err_resp:
         return err_resp, err_code
 
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"error": "No body"}), 400
+    data = request.get_json() or {}
+    item = data.get("item", "")
+    text = data.get("text", "")
+    export_format = data.get("format", "csv")
 
-    items = data.get("items", [])
-    cols = data.get("cols", list(range(37)))
-    export_format = data.get("format", "xlsx")
+    conditions = []
+    params = []
 
-    if not items:
-        return jsonify({"error": "No items"}), 400
+    if item:
+        conditions.append("c16 = ?")
+        params.append(item)
 
-    sel_cols = ", ".join(f"c{i+1}" for i in cols)
-    header_labels = [HEADERS[i] for i in cols]
+    if text:
+        like = f"%{text}%"
+        cols = ["c1", "c2", "c5", "c16", "c17", "c26", "c27", "c30"]
+        ors = " OR ".join([f"{c} LIKE ?" for c in cols])
+        conditions.append(f"({ors})")
+        params.extend([like] * len(cols))
 
-    placeholders = ",".join("?" * len(items))
-    rows = conn.execute(
-        f"SELECT {sel_cols} FROM inspection WHERE c16 IN ({placeholders}) ORDER BY rowid",
-        items
-    ).fetchall()
-    conn.close()
+    where = "WHERE " + " AND ".join(conditions) if conditions else ""
+
+    cursor = conn.execute(f"SELECT * FROM inspection {where}", params)
+    rows = cursor.fetchall()
 
     if export_format == "csv":
-        import codecs
-        output = io.BytesIO()
-        writer = csv.writer(codecs.getwriter("utf-8-sig")(output))
-        writer.writerow(header_labels)
-        for r in rows:
-            writer.writerow(list(r))
-        csv_bytes = output.getvalue()
-        output.close()
-        return Response(
-            csv_bytes,
-            mimetype="text/csv",
-            headers={"Content-Disposition": "attachment; filename=inspection_export.csv"}
-        )
-    else:
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(HEADERS)
+        for row in rows:
+            writer.writerow([row[f"c{i}"] for i in range(1, 38)])
+        result = output.getvalue()
+        return Response(result, mimetype="text/csv")
+
+    elif export_format == "xlsx":
         wb = openpyxl.Workbook()
         ws = wb.active
-        ws.title = "檢驗資料"
+        ws.append(HEADERS)
+        for row in rows:
+            ws.append([row[f"c{i}"] for i in range(1, 38)])
+        output = io.BytesIO()
+        wb.save(output)
+        output.seek(0)
+        return Response(output.getvalue(), mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
 
-        header_font = Font(bold=True, color="FFFFFF", size=11)
-        header_fill = PatternFill("solid", fgColor="1A73E8")
-        header_align = Alignment(horizontal="center", vertical="center")
-        thin_border = Border(
-            left=Side(style="thin"),
-            right=Side(style="thin"),
-            top=Side(style="thin"),
-            bottom=Side(style="thin")
-        )
+    return jsonify({"error": "Unsupported format"}), 400
 
-        for ci, label in enumerate(header_labels, 1):
-            cell = ws.cell(row=1, column=ci, value=label)
-            cell.font = header_font
-            cell.fill = header_fill
-            cell.alignment = header_align
-            cell.border = thin_border
 
-        for ri, row_data in enumerate(rows, 2):
-            for ci, val in enumerate(row_data, 1):
-                cell = ws.cell(row=ri, column=ci, value=str(val) if val is not None else "")
-                cell.border = thin_border
-                cell.alignment = Alignment(vertical="center")
+# --- 上傳功能：處理 multipart/form-data ---
+def parse_excel_bytes(file_bytes):
+    """Parse .xlsx file and return list of records."""
+    try:
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+        ws = wb.active
+        headers = [cell.value for cell in next(ws.iter_rows(min_row=1, max_row=1))]
+        records = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            record = {}
+            for i, h in enumerate(headers):
+                if h is not None:
+                    key = str(h).strip()
+                    if key:
+                        record[key] = row[i] if i < len(row) else None
+            if any(v is not None for v in record.values()):
+                records.append(record)
+        return records, None
+    except Exception as e:
+        return None, str(e)
 
-        for col_cells in ws.columns:
-            max_len = 0
-            for cell in col_cells:
-                val = str(cell.value or "")
-                char_len = sum(2 if ord(c) > 127 else 1 for c in val)
-                if char_len > max_len:
-                    max_len = char_len
-            ws.column_dimensions[col_cells[0].column_letter].width = min(max_len + 3, 60)
 
-        xlsx_output = io.BytesIO()
-        wb.save(xlsx_output)
-        xlsx_bytes = xlsx_output.getvalue()
-        xlsx_output.close()
-
-        return Response(
-            xlsx_bytes,
-            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            headers={"Content-Disposition": "attachment; filename=inspection_export.xlsx"}
-        )
-
+from werkzeug.utils import secure_filename
 
 @app.route("/api/upload", methods=["POST", "OPTIONS"])
 def api_upload():
@@ -265,27 +251,53 @@ def api_upload():
     if err_resp:
         return err_resp, err_code
 
-    filename = request.args.get("filename", "upload.xlsx")
-    raw_data = request.get_data()
-
-    if not raw_data:
-        return jsonify({"error": "No data"}), 400
-
-    # gzip decompress if needed
-    if filename.endswith(".gz") or raw_data[:2] == b'\x1f\x8b':
-        data = gzip.decompress(raw_data)
+    # Handle multipart form-data uploads from the frontend
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        if 'file' not in request.files:
+            return jsonify({"error": "No file uploaded"}), 400
+        file = request.files['file']
+        if file.filename == '':
+            return jsonify({"error": "No file selected"}), 400
+        file_bytes = file.read()
+        filename = secure_filename(file.filename)
     else:
-        data = raw_data
+        # Fallback for raw POST data
+        raw_data = request.get_data()
+        if not raw_data:
+            return jsonify({"error": "No data"}), 400
+        filename = request.args.get("filename", "upload.xlsx")
+        if filename.endswith(".gz") or raw_data[:2] == b'\x1f\x8b':
+            data = gzip.decompress(raw_data)
+        else:
+            data = raw_data
+        file_bytes = data
 
-    tmp_path = os.path.join(tempfile.gettempdir(), "uploaded.xlsx")
-    with open(tmp_path, "wb") as f:
-        f.write(data)
+    if not filename.endswith('.xlsx'):
+        return jsonify({"error": "Only .xlsx files are supported"}), 400
 
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
+    # Parse the Excel file
+    records, error = parse_excel_bytes(file_bytes)
+    if error:
+        return jsonify({"error": f"Failed to parse Excel: {error}"}), 400
 
-    conn.close()
-    return jsonify({"success": True, "message": "資料已更新！請重新整理頁面。"})
+    # Optional: Save uploaded file to temp and rebuild DB (commented out for safety)
+    # tmp_path = os.path.join(tempfile.gettempdir(), "uploaded.xlsx")
+    # with open(tmp_path, "wb") as f:
+    #     f.write(file_bytes)
+    # if os.path.exists(DB_PATH):
+    #     os.remove(DB_PATH)
+
+    columns = []
+    if records:
+        columns = list(records[0].keys())
+
+    return jsonify({
+        "success": True,
+        "filename": filename,
+        "rows": len(records),
+        "columns": columns,
+        "sample": records[:3] if records else []
+    })
 
 
 @app.route("/", defaults={"path": ""})
