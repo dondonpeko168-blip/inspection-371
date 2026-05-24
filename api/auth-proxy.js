@@ -1,24 +1,22 @@
-const { Buffer } = require('node:buffer');
+import { Buffer } from 'node:buffer';
 
-// Environment variables – set in Vercel Dashboard (already added)
 const USER = process.env.BASIC_AUTH_USER;
 const PASS = process.env.BASIC_AUTH_PASS;
 
-module.exports = async (req, res) => {
-  // 1️⃣ 讀取 Authorization 標頭 (Node.js request, headers are plain objects)
-  const authHeader = req.headers['authorization'];
+export default async function handler(req, res) {
+  // 1️⃣ 讀取 Authorization 標頭
+  const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
     return res.status(401).send('Authentication required');
   }
 
   // 2️⃣ 解析 "Basic <base64>"
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2) {
+  const [, encoded] = authHeader.split(' ') ?? [];
+  if (!encoded) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
     return res.status(401).send('Invalid authentication header');
   }
-  const encoded = parts[1];
   const decoded = Buffer.from(encoded, 'base64').toString();
   const [user, pass] = decoded.split(':');
 
@@ -28,19 +26,22 @@ module.exports = async (req, res) => {
     return res.status(401).send('Invalid credentials');
   }
 
-  // 4️⃣ Proxy 原始請求至 Vercel 靜態/API 端點
+  // 4️⃣ 取得原始請求路徑
   const originalPath = req.url.replace(/^\/api\/auth-proxy/, '') || '/index.html';
-  const origin = `https://${process.env.VERCEL_URL}`; // Vercel auto‑injectes this env var
-  const targetUrl = `${origin}${originalPath}`;
+  const origin = `https://${process.env.VERCEL_URL}`;
+  const targetUrl = `${origin}${originalPath.startsWith('/') ? '' : '/'}${originalPath}`;
 
   try {
     const originRes = await fetch(targetUrl, {
       method: req.method,
       headers: Object.fromEntries(
-        Object.entries(req.headers).filter(([k]) => k.toLowerCase() !== 'authorization')
+        [...req.headers.entries()].filter(
+          ([k]) => k.toLowerCase() !== 'authorization'
+        )
       ),
     });
-    // Forward status, headers, body
+
+    // 把後端回傳的 header、status、body 轉回給使用者
     res.status(originRes.status);
     originRes.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'content-encoding') {
@@ -50,7 +51,7 @@ module.exports = async (req, res) => {
     const body = await originRes.arrayBuffer();
     return res.send(Buffer.from(body));
   } catch (e) {
-    console.error('Auth‑proxy error:', e);
+    console.error('Auth-proxy error:', e);
     return res.status(500).send('Proxy error');
   }
-};
+}
