@@ -1,8 +1,11 @@
 {
+  "functions": {
+    "api/auth.js": {
+      "memory": 128,
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
-    { "source": "/", "destination": "/api/auth-proxy" },
-    { "source": "/index.html", "destination": "/api/auth-proxy/index.html" },
-    { "source": "/public/(.*)", "destination": "/api/auth-proxy/public/$1" },
-    { "source": "/api/(.*)", "destination": "/api/auth-proxy/api/$1" }
+    { "source": "/(.*)", "destination": "/api/auth" }
   ]
 }
