@@ -1,11 +1,11 @@
-// Basic Auth proxy for any Vercel project (works on Free plan)
-// Environment variables BASIC_AUTH_USER and BASIC_AUTH_PASS must be set in Vercel dashboard.
+const { Buffer } = require('node:buffer');
+
+// Environment variables – set in Vercel Dashboard (already added)
+const USER = process.env.BASIC_AUTH_USER;
+const PASS = process.env.BASIC_AUTH_PASS;
 
 module.exports = async (req, res) => {
-  const USER = process.env.BASIC_AUTH_USER;
-  const PASS = process.env.BASIC_AUTH_PASS;
-
-  // 1️⃣ Get Authorization header
+  // 1️⃣ Read Authorization header
   const authHeader = req.headers.get('authorization');
   if (!authHeader) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
@@ -13,12 +13,11 @@ module.exports = async (req, res) => {
   }
 
   // 2️⃣ Parse "Basic <base64>"
-  const parts = authHeader.split(' ');
-  if (parts.length !== 2) {
+  const [, encoded] = authHeader.split(' ') ?? [];
+  if (!encoded) {
     res.setHeader('WWW-Authenticate', 'Basic realm="Protected Area"');
     return res.status(401).send('Invalid authentication header');
   }
-  const encoded = parts[1];
   const decoded = Buffer.from(encoded, 'base64').toString();
   const [user, pass] = decoded.split(':');
 
@@ -28,28 +27,26 @@ module.exports = async (req, res) => {
     return res.status(401).send('Invalid credentials');
   }
 
-  // 4️⃣ Build the target path (remove the /api/auth-proxy prefix)
-  const targetPath = req.url.replace(/^\/api\/auth-proxy/, '') || '/index.html';
-  // Vercel automatically injects VERCEL_URL env var with the current domain
-  const origin = `https://${process.env.VERCEL_URL}`;
-  const targetUrl = `${origin}${targetPath}`;
+  // 4️⃣ Proxy the request to original Vercel static file / API
+  const originalPath = req.url.replace(/^\/api\/auth-proxy/, '') || '/index.html';
+  const origin = `https://${process.env.VERCEL_URL}`; // auto‑injected by Vercel
+  const targetUrl = `${origin}${originalPath}`;
 
   try {
-    const upstream = await fetch(targetUrl, {
+    const originRes = await fetch(targetUrl, {
       method: req.method,
       headers: Object.fromEntries(
         [...req.headers.entries()].filter(([k]) => k.toLowerCase() !== 'authorization')
       ),
     });
-
-    // Forward status and selected headers
-    res.status(upstream.status);
-    upstream.headers.forEach((value, key) => {
+    // Pass through status, headers, body
+    res.status(originRes.status);
+    originRes.headers.forEach((value, key) => {
       if (key.toLowerCase() !== 'content-encoding') {
         res.setHeader(key, value);
       }
     });
-    const body = await upstream.arrayBuffer();
+    const body = await originRes.arrayBuffer();
     return res.send(Buffer.from(body));
   } catch (e) {
     console.error('Auth‑proxy error:', e);
