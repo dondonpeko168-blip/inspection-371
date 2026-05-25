@@ -1,8 +1,4 @@
-import { Buffer } from 'node:buffer';
-
-const VERCEL_URL = process.env.VERCEL_URL || 'inspection-371.vercel.app';
-
-const INDEX_HTML = `<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-TW">
 <head>
 <meta charset="UTF-8">
@@ -47,7 +43,6 @@ header .sub { font-size: 13px; opacity: .8; }
 .empty-state { text-align: center; padding: 40px 20px; color: #888; }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
 .empty-state p { font-size: 14px; }
-#apiResult { white-space: pre-wrap; font-size: 12px; font-family: monospace; background: #f8f9fa; padding: 8px; border-radius: 4px; overflow-x: auto; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; }
 .toast.show { opacity: 1; }
 </style>
@@ -70,80 +65,37 @@ header .sub { font-size: 13px; opacity: .8; }
 <script>
 async function loadData() {
 try {
-const params=new URLSearchParams({limit:'500'});
-const resp=await fetch('/api/data?'+params);
+const resp=await fetch('/api/init');
 const text=await resp.text();
 const data=JSON.parse(text);
 if(data.error)throw new Error(data.error);
-window.allData=data; renderStats(); filterResults();
-document.getElementById('totalCount').textContent=data.length;
+document.getElementById('statsSummary').innerHTML = '<div class="detail"><span class="detail-item"><span class="detail-label">總資料筆數：</span>'+data.total+'</span><span class="detail-item"><span class="detail-label">分頁大小：</span>'+data.page_size+'</span></div>';
+document.getElementById('totalCount').textContent = data.total;
+// Load first page of items
+const itemsResp=await fetch('/api/items?page=1');
+const itemsText=await itemsResp.text();
+const itemsData=JSON.parse(itemsText);
+window.allItems = itemsData.items || [];
+renderItems();
 } catch(e){document.getElementById('results').innerHTML='<div class="empty-state"><div class="icon">⚠️</div><p>載入失敗：'+e.message+'</p></div>';}
 }
-function renderStats(){if(!window.allData||!window.allData.length){document.getElementById('statsSummary').innerHTML='無資料';return;}
-const total=window.allData.length; const cars={}; const types={}; const mfrs={};
-window.allData.forEach(r=>{if(r.車號)cars[r.車號]=true;if(r.車型)types[r.車型]=(types[r.車型]||0)+1;if(r.製造商)mfrs[r.製造商]=(mfrs[r.製造商]||0)+1;});
-document.getElementById('statsSummary').innerHTML='<div class="detail">'+
-'<span class="detail-item"><span class="detail-label">總資料筆數：</span>'+total+'</span>'+
-'<span class="detail-item"><span class="detail-label">不重複車號：</span>'+Object.keys(cars).length+'</span>'+
-'<span class="detail-item"><span class="detail-label">車型數：</span>'+Object.keys(types).length+'</span>'+
-'<span class="detail-item"><span class="detail-label">製造商數：</span>'+Object.keys(mfrs).length+'</span></div>';}
-function filterResults(){const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
-const data=window.allData||[]; const filtered=q?data.filter(r=>JSON.stringify(Object.values(r)).toLowerCase().includes(q)):data;
+function renderItems(){if(!window.allItems||!window.allItems.length){document.getElementById('results').innerHTML='<div class="empty-state"><div class="icon">📋</div><p>無資料</p></div>';return;}
+const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
+const filtered=q?window.allItems.filter(i=>i.toLowerCase().includes(q)):window.allItems;
 document.getElementById('resultCount').textContent=filtered.length;
-const container=document.getElementById('results'); if(!filtered.length){container.innerHTML='<div class="empty-state"><div class="icon">🔍</div><p>無符合資料</p></div>';return;}
-container.innerHTML=filtered.map((r,i)=>'<div class="search-result'+(r._selected?' selected':'')+'" data-idx="'+i+'" onclick="toggleSelect('+i+')">'+
-'<div class="car-num">'+(r.車號||'無車號')+'</div>'+
-'<div class="detail">'+Object.entries(r).filter(([k])=>k!=='_selected').map(([k,v])=>'<span class="detail-item"><span class="detail-label">'+k+'：</span>'+String(v??'-')+'</span>').join('')+'</div></div>').join('');}
-function toggleSelect(i){if(!window.allData[i])return;window.allData[i]._selected=!window.allData[i]._selected;filterResults();updateSelectedCount();}
-function selectAllVisible(){const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
-(window.allData||[]).forEach((r,i)=>{if(!q||JSON.stringify(Object.values(r)).toLowerCase().includes(q))r._selected=true;});filterResults();updateSelectedCount();showToast('已全選');}
-function deselectAll(){(window.allData||[]).forEach(r=>r._selected=false);filterResults();updateSelectedCount();showToast('已清除選擇');}
-function clearFilters(){document.getElementById('searchInput').value='';filterResults();}
-function updateSelectedCount(){document.getElementById('selectedCount').textContent=(window.allData||[]).filter(r=>r._selected).length;}
-function batchExport(){const sel=(window.allData||[]).filter(r=>r._selected);if(!sel.length){showToast('請先選擇至少一筆資料');return;}
+const container=document.getElementById('results');
+container.innerHTML=filtered.map((item,i)=>'<div class="search-result'+(item._selected?' selected':'')+'" onclick="toggleSelect('+i+')">'+
+'<div class="car-num">'+(item||'無項目')+'</div></div>').join('');
+}
+function toggleSelect(i){if(!window.allItems[i])return;window.allItems[i]._selected=!window.allItems[i]._selected;renderItems();updateSelectedCount();}
+function selectAllVisible(){window.allItems.forEach(r=>r._selected=true);renderItems();updateSelectedCount();showToast('已全選');}
+function deselectAll(){window.allItems.forEach(r=>r._selected=false);renderItems();updateSelectedCount();showToast('已清除選擇');}
+function clearFilters(){document.getElementById('searchInput').value='';renderItems();}
+function updateSelectedCount(){document.getElementById('selectedCount').textContent=(window.allItems||[]).filter(r=>r._selected).length;}
+function batchExport(){const sel=(window.allItems||[]).filter(r=>r._selected);if(!sel.length){showToast('請先選擇至少一筆資料');return;}
 const blob=new Blob([JSON.stringify(sel,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.json';a.click();showToast('已匯出 '+sel.length+' 筆');}
-function batchExportFull(){const sel=(window.allData||[]).filter(r=>r._selected);if(!sel.length){showToast('請先選擇至少一筆資料');return;}
-const opts={headers:{'Content-Type':'application/json'},method:'POST',body:JSON.stringify(sel)};
-fetch('/api/export_detail?'+new URLSearchParams({filename:'batch_export_'+Date.now()}),opts).then(r=>r.json()).then(d=>{if(d.url){window.open(d.url,'_blank');showToast('已產生下載連結');}else showToast('匯出失敗：'+(d.error||'未知錯誤'));}).catch(e=>showToast('匯出失敗：'+e.message));}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
 loadData();
 </script>
 </body>
-</html>`;
-
-export default async function handler(req, res) {
-  try {
-    // Parse the actual request path
-    const rawUrl = req.url || '/';
-    const queryIdx = rawUrl.indexOf('?');
-    const path = queryIdx >= 0 ? rawUrl.substring(0, queryIdx) : rawUrl;
-    const qs = queryIdx >= 0 ? rawUrl.substring(queryIdx) : '';
-
-    // Serve embedded HTML for root
-    if (path === '/' || path === '/index.html') {
-      res.setHeader('Content-Type', 'text/html; charset=utf-8');
-      return res.status(200).send(INDEX_HTML);
-    }
-
-    // For API routes, proxy to the internal Flask/Python endpoint
-    // Vercel rewrites (/(.*) -> /api/proxy) passes the original path as req.url
-    const targetUrl = `https://${VERCEL_URL}${path}${qs}`;
-
-    const upstream = await fetch(targetUrl, {
-      method: req.method,
-      headers: Object.fromEntries([...req.headers.entries()]),
-    });
-
-    res.status(upstream.status);
-    upstream.headers.forEach((val, key) => {
-      if (key !== 'content-encoding') {
-        res.setHeader(key, val);
-      }
-    });
-    const body = await upstream.arrayBuffer();
-    return res.send(Buffer.from(body));
-  } catch (err) {
-    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
-    return res.status(500).send(`Proxy error: ${err.message}`);
-  }
-}
+</html>
