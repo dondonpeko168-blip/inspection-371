@@ -53,7 +53,7 @@ header .sub { font-size: 13px; opacity: .8; }
 <div class="sidebar">
 <div class="card"><h3>🔍 搜尋條件</h3><div class="search-box"><input type="text" id="searchInput" placeholder="輸入車號、車型、廠商…" oninput="filterResults()"></div>
 <div class="filter-actions"><button class="btn-primary" onclick="selectAllVisible()">全選</button><button class="btn-outline" onclick="deselectAll()">清除選擇</button><button class="btn-outline" onclick="clearFilters()">清除篩選</button></div>
-<div class="card" style="margin-top:12px"><h3>📦 批次動作</h3><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="batchExport()">📥 匯出選擇 (JSON)</button><button class="btn-primary" style="width:100%" onclick="batchExportFull()">📥 匯出完整明細</button></div>
+<div class="card" style="margin-top:12px"><h3>📦 批次動作</h3><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="batchExport()">📥 匯出選擇 (JSON)</button><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="document.getElementById('uploadInput').click()">📤 上傳 Excel 檔案</button><input type="file" id="uploadInput" accept=".xlsx" style="display:none" onchange="uploadFile(this.files[0])"></div>
 <div class="card" style="margin-top:0"><h3>📋 選取統計</h3><div class="stats"><span id="selectedCount">0</span> / <span id="totalCount">0</span> 輛車</div></div>
 </div>
 <div class="main-content">
@@ -94,7 +94,19 @@ function clearFilters(){document.getElementById('searchInput').value='';renderIt
 function updateSelectedCount(){document.getElementById('selectedCount').textContent=(window.allItems||[]).filter(r=>r._selected).length;}
 function batchExport(){const sel=(window.allItems||[]).filter(r=>r._selected);if(!sel.length){showToast('請先選擇至少一筆資料');return;}
 const blob=new Blob([JSON.stringify(sel,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.json';a.click();showToast('已匯出 '+sel.length+' 筆');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000);}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
+async function uploadFile(file){
+if(!file){showToast('請選擇檔案');return;}
+if(!file.name.endsWith('.xlsx')){showToast('僅支援 .xlsx 格式');return;}
+showToast('上傳中: '+file.name);
+const formData=new FormData();formData.append('file',file);
+try{
+const resp=await fetch('/api/upload',{method:'POST',body:formData});
+const data=await resp.json();
+if(data.success){showToast('✅ 上傳成功! '+data.rows+' 筆資料');document.getElementById('uploadResult').innerHTML='<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：'+data.rows+' 行，'+data.columns.length+' 欄<br>範例：<br><code>'+JSON.stringify(data.sample,null,2).slice(0,300)+'</code></div>';}
+else showToast('❌ 上傳失敗: '+(data.error||'未知錯誤'));
+}catch(e){showToast('❌ 錯誤: '+e.message);}
+}
 loadData();
 </script>
 </body>
