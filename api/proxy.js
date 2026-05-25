@@ -126,7 +126,8 @@ export default async function handler(req, res) {
     }
 
     // For API routes, proxy to the internal Flask/Python endpoint
-    const targetUrl = `https://${VERCEL_URL}/api${path}${qs}`;
+    // Vercel rewrites (/(.*) -> /api/proxy) passes the original path as req.url
+    const targetUrl = `https://${VERCEL_URL}${path}${qs}`;
 
     const upstream = await fetch(targetUrl, {
       method: req.method,
