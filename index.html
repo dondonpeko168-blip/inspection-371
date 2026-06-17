@@ -276,12 +276,10 @@ async function uploadFile(file) {
     // ── Presigned-URL flow (large file → R2 direct) ──────────────────────
     showToast('大檔案模式：' + (file.size / 1024 / 1024).toFixed(1) + 'MB，正在取得上傳網址…');
     try {
-      // Step 1: get presigned PUT URL
       const urlRes = await fetch('/api/upload-url?filename=' + encodeURIComponent(file.name));
       const urlData = await urlRes.json();
-      if (!urlData.upload_url) throw new Error(urlData.error || '無法取得上傳網址');
+      if (!urlRes.ok || !urlData.upload_url) throw new Error((urlData && urlData.error) || 'HTTP ' + urlRes.status);
 
-      // Step 2: PUT directly to R2 (no Vercel in the path!)
       showToast('直接上傳至雲端儲存…');
       const uploadRes = await fetch(urlData.upload_url, {
         method: 'PUT',
@@ -290,7 +288,6 @@ async function uploadFile(file) {
       });
       if (!uploadRes.ok) throw new Error('上傳至雲端失敗 HTTP ' + uploadRes.status);
 
-      // Step 3: tell backend to download & process
       showToast('處理資料中…');
       const completeRes = await fetch('/api/upload-complete', {
         method: 'POST',
@@ -298,16 +295,15 @@ async function uploadFile(file) {
         body: JSON.stringify({ key: urlData.key, filename: file.name }),
       });
       const completeData = await completeRes.json();
-      if (!completeData.success) throw new Error(completeData.error || '處理失敗');
+      if (!completeRes.ok || !completeData.success) throw new Error((completeData && completeData.error) || '處理失敗');
 
       showToast('✅ 上傳成功！' + completeData.rows.toLocaleString() + ' 筆資料');
       document.getElementById('uploadResult').innerHTML =
-        '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' +
-        completeData.rows.toLocaleString() + ' 列，' + completeData.columns.length + ' 欄<br>自動重新載入中…</div>';
-      setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; // loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料 }, 1500);
+        '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px;color:#2e7d32">✅ 上傳成功：' +
+        completeData.rows.toLocaleString() + ' 列，' + completeData.columns.length + ' 欄<br>請重新整理頁面以查看最新資料</div>';
     } catch(e) {
       showToast('❌ 上傳失敗：' + e.message);
-      console.error(e);
+      console.error('Upload error:', e);
     }
   } else {
     // ── Direct upload (small file → Vercel) ────────────────────────────────
@@ -316,16 +312,21 @@ async function uploadFile(file) {
     formData.append('file', file);
     try {
       const resp = await fetch('/api/upload', { method: 'POST', body: formData });
-      const data = await resp.json();
-      if (data.success) {
+      const data = await resp.json().catch(() => ({ error: '伺服器回應格式錯誤（不是 JSON）' }));
+      if (resp.ok && data.success) {
         showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
-        document.getElementById('uploadResult').innerHTML = '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' + data.rows.toLocaleString() + ' 列，' + data.columns.length + ' 欄<br>自動重新載入中…</div>';
-        setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; // loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料 }, 1500);
+        document.getElementById('uploadResult').innerHTML =
+          '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px;color:#2e7d32">✅ 上傳成功：' +
+          data.rows.toLocaleString() + ' 列，' + data.columns.length + ' 欄<br>請重新整理頁面以查看最新資料</div>';
       } else {
-        showToast('❌ 上傳失敗：' + (data.error || '未知錯誤'));
+        showToast('❌ 上傳失敗：' + (data.error || '未知錯誤（HTTP ' + resp.status + '）'));
+        document.getElementById('uploadResult').innerHTML =
+          '<div style="margin-top:8px;padding:8px;background:#ffebee;border-radius:4px;font-size:12px;color:#c62828">❌ 上傳失敗：' +
+          (data.error || '未知錯誤') + '</div>';
       }
     } catch(e) {
-      showToast('❌ 錯誤：' + e.message);
+      showToast('❌ 網路錯誤：' + e.message);
+      console.error('Upload network error:', e);
     }
   }
 }
