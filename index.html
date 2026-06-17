@@ -17,96 +17,319 @@ header .sub { font-size: 13px; opacity: .8; }
 .sidebar .card { padding: 14px; }
 .search-box input { width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 13px; outline: none; }
 .search-box input:focus { border-color: #1a73e8; box-shadow: 0 0 0 2px rgba(26,115,232,.15); }
-.check-item-list { max-height: 350px; overflow-y: auto; border: 1px solid #e4e6eb; border-radius: 6px; margin-top: 8px; }
-.check-item-list label { display: flex; align-items: flex-start; gap: 6px; padding: 5px 10px; font-size: 12px; font-weight: 400; cursor: pointer; border-bottom: 1px solid #f0f2f5; line-height: 1.4; word-break: break-all; }
-.check-item-list label:hover { background: #f0f7ff; }
-.check-item-list label input { margin-top: 2px; flex-shrink: 0; }
-.check-item-list .select-all { position: sticky; top: 0; background: #f8f9fa; padding: 6px 10px; font-size: 12px; font-weight: 500; border-bottom: 1px solid #e4e6eb; display: flex; align-items: center; gap: 6px; z-index: 1; }
+.search-hint { font-size: 11px; color: #aaa; margin-top: 4px; }
 .filter-actions { display: flex; gap: 8px; margin-top: 8px; }
 .filter-actions button { flex: 1; padding: 8px 12px; border: none; border-radius: 6px; font-size: 13px; cursor: pointer; font-weight: 500; }
 .btn-primary { background: #1a73e8; color: #fff; }
 .btn-primary:hover { background: #1557b0; }
 .btn-outline { background: #fff; color: #555; border: 1px solid #ddd !important; }
 .btn-outline:hover { background: #f5f5f5; }
-.result-card { margin-top: 12px; }
+.main-content .card { padding: 16px; }
+.result-card { margin-top: 0; }
 .result-card h2 { font-size: 16px; margin-bottom: 8px; }
-.result-card .stats { font-size: 13px; color: #666; margin-bottom: 10px; }
+.result-card .stats { font-size: 13px; color: #666; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.result-card .stats .hint { color: #aaa; font-size: 12px; }
 .search-result { background: #fff; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,.1); margin-bottom: 8px; padding: 12px 14px; cursor: pointer; transition: all .15s; border-left: 3px solid transparent; }
 .search-result:hover { background: #f0f7ff; border-left-color: #1a73e8; }
+.search-result.selected { border-left-color: #28a745; background: #f0fff0; }
 .search-result .car-num { font-weight: 600; font-size: 15px; color: #1a73e8; margin-bottom: 4px; }
-.search-result .detail { font-size: 12px; color: #555; line-height: 1.5; display: flex; flex-wrap: wrap; gap: 4px 12px; }
-.search-result .detail-item { white-space: nowrap; }
-.search-result .detail-label { color: #888; }
-.selected { border-left-color: #28a745; background: #f0fff0; }
-.selected .car-num { color: #28a745; }
-.selected:hover { background: #e8ffe8; }
+.search-result .car-num .badge { font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+.badge-done { background: #e8f5e9; color: #2e7d32; }
+.badge-progress { background: #fff8e1; color: #f57f17; }
+.badge-other { background: #f5f5f5; color: #666; }
+.search-result .detail { font-size: 12px; color: #555; line-height: 1.6; display: flex; flex-wrap: wrap; gap: 3px 14px; }
+.search-result .detail-item { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 280px; }
+.search-result .detail-label { color: #888; margin-right: 4px; }
+.selected-overlay { display: inline-block; width: 16px; height: 16px; border-radius: 50%; background: #28a745; color: #fff; font-size: 10px; line-height: 16px; text-align: center; margin-right: 6px; vertical-align: middle; }
 .empty-state { text-align: center; padding: 40px 20px; color: #888; }
 .empty-state .icon { font-size: 48px; margin-bottom: 12px; }
 .empty-state p { font-size: 14px; }
+.loading-state { text-align: center; padding: 40px 20px; color: #888; }
+.loading-spinner { width: 32px; height: 32px; border: 3px solid #e4e6eb; border-top-color: #1a73e8; border-radius: 50%; animation: spin .8s linear infinite; margin: 0 auto 12px; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.pagination { display: flex; align-items: center; justify-content: center; gap: 6px; margin-top: 16px; flex-wrap: wrap; }
+.pagination button { padding: 6px 12px; border: 1px solid #ddd; border-radius: 6px; background: #fff; cursor: pointer; font-size: 13px; color: #333; }
+.pagination button:hover:not(:disabled) { background: #f0f7ff; border-color: #1a73e8; }
+.pagination button:disabled { opacity: .4; cursor: not-allowed; }
+.pagination button.active { background: #1a73e8; color: #fff; border-color: #1a73e8; }
+.pagination .page-info { font-size: 13px; color: #666; padding: 0 8px; }
 .toast { position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%); background: #333; color: #fff; padding: 8px 16px; border-radius: 20px; font-size: 13px; z-index: 200; opacity: 0; transition: opacity .3s; }
 .toast.show { opacity: 1; }
+.status-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; margin-right: 4px; vertical-align: middle; }
+.status-done { background: #4caf50; }
+.status-progress { background: #ff9800; }
+.status-other { background: #999; }
 </style>
 </head>
 <body>
 <header><h1>🚇 台北捷運371型電聯車 巡檢保養查詢</h1><div class="sub">inspection-371 · 批次輸出</div></header>
 <div class="container">
 <div class="sidebar">
-<div class="card"><h3>🔍 搜尋條件</h3><div class="search-box"><input type="text" id="searchInput" placeholder="輸入車號、車型、廠商…" oninput="filterResults()"></div>
+<div class="card"><h3>🔍 搜尋條件</h3><div class="search-box"><input type="text" id="searchInput" placeholder="輸入車號、工項名稱、檢修狀態… (任意關鍵字)" oninput="filterResults()"><div class="search-hint">支援車號、工項名稱、檢修狀態、檢查人員等</div></div>
 <div class="filter-actions"><button class="btn-primary" onclick="selectAllVisible()">全選</button><button class="btn-outline" onclick="deselectAll()">清除選擇</button><button class="btn-outline" onclick="clearFilters()">清除篩選</button></div>
-<div class="card" style="margin-top:12px"><h3>📦 批次動作</h3><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="batchExport()">📥 匯出選擇 (JSON)</button><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="document.getElementById('uploadInput').click()">📤 上傳 Excel 檔案</button><input type="file" id="uploadInput" accept=".xlsx" style="display:none" onchange="uploadFile(this.files[0])"></div>
-<div class="card" style="margin-top:0"><h3>📋 選取統計</h3><div class="stats"><span id="selectedCount">0</span> / <span id="totalCount">0</span> 輛車</div></div>
+<div class="card" style="margin-top:12px"><h3>📦 批次動作</h3><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="batchExport()">📥 匯出選擇 (JSON)</button><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="document.getElementById('uploadInput').click()">📤 上傳 Excel 檔案</button><input type="file" id="uploadInput" accept=".xlsx" style="display:none" onchange="uploadFile(this.files[0])"><div id="uploadResult"></div></div>
+<div class="card" style="margin-top:0"><h3>📋 選取統計</h3><div class="stats"><span id="selectedCount">0</span> / <span id="totalCount">0</span> 筆記錄</div></div>
 </div>
 <div class="main-content">
 <div class="card"><h3>📊 統計總覽</h3><div id="statsSummary" class="stats">載入中…</div></div>
-<div class="card result-card"><h2>📋 搜尋結果</h2><div class="stats"><span id="resultCount">0</span> 筆資料</div><div id="results"></div></div>
+<div class="card result-card"><h2>📋 搜尋結果</h2><div class="stats"><span id="resultCount">0</span> 筆記錄</div><span class="hint" id="pageHint"></span><div id="results"><div class="loading-state"><div class="loading-spinner"></div><p>載入中…</p></div></div><div class="pagination" id="pagination"></div></div>
 </div>
 </div>
 <div id="toast" class="toast"></div>
 <script>
+const PAGE_SIZE = 100;
+let currentPage = 1;
+let currentTotal = 0;
+let currentKeyword = '';
+let debounceTimer = null;
+
 async function loadData() {
-try {
-const resp=await fetch('/api/init');
-const text=await resp.text();
-const data=JSON.parse(text);
-if(data.error)throw new Error(data.error);
-document.getElementById('statsSummary').innerHTML = '<div class="detail"><span class="detail-item"><span class="detail-label">總資料筆數：</span>'+data.total+'</span><span class="detail-item"><span class="detail-label">分頁大小：</span>'+data.page_size+'</span></div>';
-document.getElementById('totalCount').textContent = data.total;
-// Load first page of items
-const itemsResp=await fetch('/api/items?page=1');
-const itemsText=await itemsResp.text();
-const itemsData=JSON.parse(itemsText);
-window.allItems = itemsData.items || [];
-renderItems();
-} catch(e){document.getElementById('results').innerHTML='<div class="empty-state"><div class="icon">⚠️</div><p>載入失敗：'+e.message+'</p></div>';}
+  try {
+    const initResp = await fetch('/api/init');
+    const initData = await initResp.json();
+    if (initData.error) throw new Error(initData.error);
+    currentTotal = initData.total;
+    document.getElementById('statsSummary').innerHTML = '<div class="detail"><span class="detail-item"><span class="detail-label">總資料筆數：</span>' + currentTotal.toLocaleString() + '</span><span class="detail-item"><span class="detail-label">分頁大小：</span>' + PAGE_SIZE + '</span></div>';
+    document.getElementById('totalCount').textContent = currentTotal.toLocaleString();
+    // Load first page
+    await loadPage(1);
+  } catch(e) {
+    document.getElementById('results').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>載入失敗：' + e.message + '</p></div>';
+  }
 }
-function renderItems(){if(!window.allItems||!window.allItems.length){document.getElementById('results').innerHTML='<div class="empty-state"><div class="icon">📋</div><p>無資料</p></div>';return;}
-const q=(document.getElementById('searchInput').value||'').toLowerCase().trim();
-const filtered=q?window.allItems.filter(i=>i.toLowerCase().includes(q)):window.allItems;
-document.getElementById('resultCount').textContent=filtered.length;
-const container=document.getElementById('results');
-container.innerHTML=filtered.map((item,i)=>'<div class="search-result'+(item._selected?' selected':'')+'" onclick="toggleSelect('+i+')">'+
-'<div class="car-num">'+(item||'無項目')+'</div></div>').join('');
+
+async function loadPage(page) {
+  currentPage = page;
+  document.getElementById('results').innerHTML = '<div class="loading-state"><div class="loading-spinner"></div><p>查詢中…</p></div>';
+  try {
+    const keyword = currentKeyword;
+    let url = '/api/query?page=' + page + '&limit=' + PAGE_SIZE;
+    if (keyword) url += '&q=' + encodeURIComponent(keyword);
+    const resp = await fetch(url);
+    const data = await resp.json();
+    renderResults(data);
+  } catch(e) {
+    document.getElementById('results').innerHTML = '<div class="empty-state"><div class="icon">⚠️</div><p>查詢失敗：' + e.message + '</p></div>';
+  }
 }
-function toggleSelect(i){if(!window.allItems[i])return;window.allItems[i]._selected=!window.allItems[i]._selected;renderItems();updateSelectedCount();}
-function selectAllVisible(){window.allItems.forEach(r=>r._selected=true);renderItems();updateSelectedCount();showToast('已全選');}
-function deselectAll(){window.allItems.forEach(r=>r._selected=false);renderItems();updateSelectedCount();showToast('已清除選擇');}
-function clearFilters(){document.getElementById('searchInput').value='';renderItems();}
-function updateSelectedCount(){document.getElementById('selectedCount').textContent=(window.allItems||[]).filter(r=>r._selected).length;}
-function batchExport(){const sel=(window.allItems||[]).filter(r=>r._selected);if(!sel.length){showToast('請先選擇至少一筆資料');return;}
-const blob=new Blob([JSON.stringify(sel,null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.json';a.click();showToast('已匯出 '+sel.length+' 筆');}
-function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),3000);}
-async function uploadFile(file){
-if(!file){showToast('請選擇檔案');return;}
-if(!file.name.endsWith('.xlsx')){showToast('僅支援 .xlsx 格式');return;}
-showToast('上傳中: '+file.name);
-const formData=new FormData();formData.append('file',file);
-try{
-const resp=await fetch('/api/upload',{method:'POST',body:formData});
-const data=await resp.json();
-if(data.success){showToast('✅ 上傳成功! '+data.rows+' 筆資料');document.getElementById('uploadResult').innerHTML='<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：'+data.rows+' 行，'+data.columns.length+' 欄<br>範例：<br><code>'+JSON.stringify(data.sample,null,2).slice(0,300)+'</code></div>';}
-else showToast('❌ 上傳失敗: '+(data.error||'未知錯誤'));
-}catch(e){showToast('❌ 錯誤: '+e.message);}
+
+function filterResults() {
+  clearTimeout(debounceTimer);
+  debounceTimer = setTimeout(() => {
+    currentKeyword = (document.getElementById('searchInput').value || '').trim();
+    currentPage = 1;
+    loadPage(1);
+  }, 300);
 }
+
+function renderResults(data) {
+  const items = data.data || [];
+  const total = data.total || 0;
+  const page = data.page || 1;
+  const perPage = data.per_page || PAGE_SIZE;
+  currentTotal = total;
+
+  document.getElementById('resultCount').textContent = total.toLocaleString();
+  const pageHint = document.getElementById('pageHint');
+  pageHint.textContent = items.length > 0 ? '（本頁 ' + items.length + ' 筆記錄）' : '';
+
+  const container = document.getElementById('results');
+  if (!items.length) {
+    container.innerHTML = '<div class="empty-state"><div class="icon">📋</div><p>無符合的資料</p></div>';
+    document.getElementById('pagination').innerHTML = '';
+    return;
+  }
+
+  container.innerHTML = items.map((item, i) => {
+    const carNum = item['車號/最小成本單位'] || item['系統別'] || '—';
+    const workName = item['工項名稱'] || '';
+    const status = item['檢修狀態'] || '';
+    const checkTime = item['檢查時間'] || '';
+    const personnel = item['檢查人員'] || '';
+    const cycle = item['檢修週期'] || '';
+    const formName = item['表單名稱'] || '';
+    const result = item['檢查結果'] || '';
+    const statusClass = status.includes('完工') || status.includes('完成') ? 'badge-done' : status.includes('施作') || status.includes('進行') ? 'badge-progress' : 'badge-other';
+    const dotClass = status.includes('完工') || status.includes('完成') ? 'status-done' : status.includes('施作') || status.includes('進行') ? 'status-progress' : 'status-other';
+    return '<div class="search-result' + (item._selected ? ' selected' : '') + '" onclick="toggleSelect(' + i + ')">' +
+      '<div class="car-num"><span class="status-dot ' + dotClass + '"></span>' + escapeHtml(carNum) + ' <span class="badge ' + statusClass + '">' + escapeHtml(status) + '</span></div>' +
+      '<div class="detail">' +
+      (workName ? '<span class="detail-item"><span class="detail-label">工項：</span>' + escapeHtml(workName) + '</span>' : '') +
+      (cycle ? '<span class="detail-item"><span class="detail-label">週期：</span>' + escapeHtml(cycle) + '</span>' : '') +
+      (formName ? '<span class="detail-item"><span class="detail-label">表單：</span>' + escapeHtml(formName) + '</span>' : '') +
+      (checkTime ? '<span class="detail-item"><span class="detail-label">時間：</span>' + escapeHtml(checkTime) + '</span>' : '') +
+      (personnel ? '<span class="detail-item"><span class="detail-label">人員：</span>' + escapeHtml(personnel) + '</span>' : '') +
+      (result ? '<span class="detail-item"><span class="detail-label">結果：</span>' + escapeHtml(String(result)) + '</span>' : '') +
+      '</div></div>';
+  }).join('');
+
+  // Build pagination
+  const totalPages = Math.ceil(total / perPage);
+  const pagination = document.getElementById('pagination');
+  if (totalPages <= 1) {
+    pagination.innerHTML = '';
+    return;
+  }
+  let html = '';
+  html += '<button onclick="loadPage(' + (page - 1) + ')" ' + (page <= 1 ? 'disabled' : '') + '>← 上一頁</button>';
+  // Show up to 7 page buttons
+  let startPage = Math.max(1, page - 3);
+  let endPage = Math.min(totalPages, page + 3);
+  if (endPage - startPage < 7) { startPage = Math.max(1, endPage - 6); }
+  if (startPage > 1) html += '<button onclick="loadPage(1)">1</button>';
+  if (startPage > 2) html += '<span style="color:#999">…</span>';
+  for (let p = startPage; p <= endPage; p++) {
+    html += '<button class="' + (p === page ? 'active' : '') + '" onclick="loadPage(' + p + ')">' + p + '</button>';
+  }
+  if (endPage < totalPages - 1) html += '<span style="color:#999">…</span>';
+  if (endPage < totalPages) html += '<button onclick="loadPage(' + totalPages + ')">' + totalPages + '</button>';
+  html += '<button onclick="loadPage(' + (page + 1) + ')" ' + (page >= totalPages ? 'disabled' : '') + '>下一頁 →</button>';
+  pagination.innerHTML = html;
+}
+
+function escapeHtml(str) {
+  if (str == null) return '';
+  return String(str).replace(/&/g,'&').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'"');
+}
+
+function toggleSelect(globalIdx) {
+  const keyword = currentKeyword;
+  let url = '/api/query?page=' + currentPage + '&limit=' + PAGE_SIZE;
+  if (keyword) url += '&q=' + encodeURIComponent(keyword);
+  fetch(url).then(r=>r.json()).then(data=>{
+    const items = data.data || [];
+    if (!items[globalIdx]) return;
+    items[globalIdx]._selected = !items[globalIdx]._selected;
+    renderResults(data);
+    updateSelectedCount();
+  });
+}
+
+function selectAllVisible() {
+  const keyword = currentKeyword;
+  let url = '/api/query?page=' + currentPage + '&limit=' + PAGE_SIZE;
+  if (keyword) url += '&q=' + encodeURIComponent(keyword);
+  fetch(url).then(r=>r.json()).then(data=>{
+    (data.data||[]).forEach(r=>r._selected=true);
+    renderResults(data);
+    updateSelectedCount();
+    showToast('已全選 ' + data.data.length + ' 筆');
+  });
+}
+
+function deselectAll() {
+  const keyword = currentKeyword;
+  let url = '/api/query?page=' + currentPage + '&limit=' + PAGE_SIZE;
+  if (keyword) url += '&q=' + encodeURIComponent(keyword);
+  fetch(url).then(r=>r.json()).then(data=>{
+    (data.data||[]).forEach(r=>r._selected=false);
+    renderResults(data);
+    updateSelectedCount();
+    showToast('已清除選擇');
+  });
+}
+
+function clearFilters() {
+  document.getElementById('searchInput').value = '';
+  currentKeyword = '';
+  currentPage = 1;
+  loadPage(1);
+}
+
+function updateSelectedCount() {
+  fetch('/api/query?page=' + currentPage + '&limit=' + PAGE_SIZE + (currentKeyword ? '&q=' + encodeURIComponent(currentKeyword) : ''))
+    .then(r=>r.json())
+    .then(data=>{
+      const sel = (data.data||[]).filter(r=>r._selected).length;
+      document.getElementById('selectedCount').textContent = sel;
+    });
+}
+
+function batchExport() {
+  const keyword = currentKeyword;
+  let url = '/api/export';
+  const body = { format: 'json', text: keyword };
+  fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
+    .then(r=>r.blob())
+    .then(blob=>{
+      const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
+      a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
+      showToast('匯出成功');
+    })
+    .catch(e=>showToast('匯出失敗：'+e.message));
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+
+async function uploadFile(file) {
+  if (!file) { showToast('請選擇檔案'); return; }
+  if (!file.name.endsWith('.xlsx')) { showToast('僅支援 .xlsx 格式'); return; }
+
+  const LARGE_THRESHOLD = 4 * 1024 * 1024; // 4 MB
+
+  if (file.size > LARGE_THRESHOLD) {
+    // ── Presigned-URL flow (large file → R2 direct) ──────────────────────
+    showToast('大檔案模式：' + (file.size / 1024 / 1024).toFixed(1) + 'MB，正在取得上傳網址…');
+    try {
+      // Step 1: get presigned PUT URL
+      const urlRes = await fetch('/api/upload-url?filename=' + encodeURIComponent(file.name));
+      const urlData = await urlRes.json();
+      if (!urlData.upload_url) throw new Error(urlData.error || '無法取得上傳網址');
+
+      // Step 2: PUT directly to R2 (no Vercel in the path!)
+      showToast('直接上傳至雲端儲存…');
+      const uploadRes = await fetch(urlData.upload_url, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' },
+      });
+      if (!uploadRes.ok) throw new Error('上傳至雲端失敗 HTTP ' + uploadRes.status);
+
+      // Step 3: tell backend to download & process
+      showToast('處理資料中…');
+      const completeRes = await fetch('/api/upload-complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: urlData.key, filename: file.name }),
+      });
+      const completeData = await completeRes.json();
+      if (!completeData.success) throw new Error(completeData.error || '處理失敗');
+
+      showToast('✅ 上傳成功！' + completeData.rows.toLocaleString() + ' 筆資料');
+      document.getElementById('uploadResult').innerHTML =
+        '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' +
+        completeData.rows.toLocaleString() + ' 列，' + completeData.columns.length + ' 欄<br>自動重新載入中…</div>';
+      setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; loadData(); }, 1500);
+    } catch(e) {
+      showToast('❌ 上傳失敗：' + e.message);
+      console.error(e);
+    }
+  } else {
+    // ── Direct upload (small file → Vercel) ────────────────────────────────
+    showToast('上傳中: ' + file.name);
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+      const data = await resp.json();
+      if (data.success) {
+        showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
+        document.getElementById('uploadResult').innerHTML = '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' + data.rows.toLocaleString() + ' 列，' + data.columns.length + ' 欄<br>自動重新載入中…</div>';
+        setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; loadData(); }, 1500);
+      } else {
+        showToast('❌ 上傳失敗：' + (data.error || '未知錯誤'));
+      }
+    } catch(e) {
+      showToast('❌ 錯誤：' + e.message);
+    }
+  }
+}
+
 loadData();
 </script>
 </body>

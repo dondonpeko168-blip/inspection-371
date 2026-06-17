@@ -4,6 +4,8 @@ import os
 import sqlite3
 import gzip
 import io
+import boto3
+from botocore.config import Config as BotoConfig
 from flask import Flask, request, jsonify, Response, send_from_directory
 
 app = Flask(__name__, static_folder="../")
@@ -11,6 +13,28 @@ app = Flask(__name__, static_folder="../")
 DB_PATH = "/tmp/insp_371.db"
 PAGE_SIZE = 100
 ITEM_PAGE = 200
+
+# ── R2 / S3 client ──────────────────────────────────────────────────────────
+R2_ACCOUNT_ID  = os.environ.get("R2_ACCOUNT_ID",  "72ee811d77e8613491f208c9e92bb937")
+R2_BUCKET      = os.environ.get("R2_BUCKET",      "371-file")
+R2_ENDPOINT    = os.environ.get("R2_ENDPOINT",
+                                  f"https://{R2_ACCOUNT_ID}.r2.cloudflarestorage.com")
+R2_ACCESS_KEY  = os.environ.get("R2_ACCESS_KEY",  "")
+R2_SECRET_KEY  = os.environ.get("R2_SECRET_KEY",  "")
+
+_r2_client = None
+def get_r2_client():
+    global _r2_client
+    if not _r2_client and R2_ACCESS_KEY and R2_SECRET_KEY:
+        _r2_client = boto3.client(
+            "s3",
+            endpoint_url=R2_ENDPOINT,
+            aws_access_key_id=R2_ACCESS_KEY,
+            aws_secret_access_key=R2_SECRET_KEY,
+            region_name="auto",
+            config=BotoConfig(s3={"addressing_style": "virtual"}),
+        )
+    return _r2_client
 
 
 def parse_xlsx(file_bytes):
@@ -71,6 +95,13 @@ def ensure_db():
         conn.commit()
 
     conn.execute("ANALYZE")
+    # Store xlsx mtime for cache-busting on next deploy
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    xlsx_gz_path = os.path.join(script_dir, "data.xlsx.gz")
+    xlsx_mtime = int(os.path.getmtime(xlsx_gz_path) * 1000)
+    conn.execute("CREATE TABLE IF NOT EXISTS _meta (key TEXT PRIMARY KEY, value TEXT)")
+    conn.execute("INSERT OR REPLACE INTO _meta VALUES ('xlsx_mtime', ?)", (str(xlsx_mtime),))
+    conn.commit()
     conn.close()
 
     conn = sqlite3.connect(DB_PATH)
@@ -123,6 +154,22 @@ def get_conn_or_error():
             if err:
                 return None, jsonify({"error": err}), 500, []
             return conn, None, None, headers
+        # ── Force rebuild if xlsx file changed (new deployment) ──────────────
+        xlsx_mtime = int(os.path.getmtime(xlsx_gz) * 1000)
+        try:
+            cursor = conn.execute("SELECT value FROM _meta WHERE key='xlsx_mtime'")
+            row = cursor.fetchone()
+            cached_mtime = int(row[0]) if row else 0
+        except sqlite3.OperationalError:
+            cached_mtime = 0
+        if xlsx_mtime != cached_mtime:
+            conn.close()
+            if os.path.exists(DB_PATH):
+                os.remove(DB_PATH)
+            conn, err, headers = ensure_db()
+            if err:
+                return None, jsonify({"error": err}), 500, []
+            return conn, None, None, headers
         return conn, None, None, current_headers
     except sqlite3.OperationalError:
         conn.close()
@@ -150,6 +197,14 @@ def add_cors(response):
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
     return response
 
+
+@app.route("/api/debug", methods=["GET"])
+def api_debug():
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    xlsx_gz = os.path.join(script_dir, "data.xlsx.gz")
+    exists = os.path.exists(xlsx_gz)
+    mtime = int(os.path.getmtime(xlsx_gz) * 1000) if exists else 0
+    return jsonify({"xlsx_exists": exists, "xlsx_mtime": mtime})
 
 @app.route("/api/init", methods=["GET", "OPTIONS"])
 def api_init():
@@ -375,6 +430,106 @@ def api_upload():
         "sample": [{h: (rows[j][i] if i < len(rows[j]) else "") for i, h in enumerate(headers)}
                     for j in range(min(3, len(rows)))]
     })
+
+
+# ── Presigned-URL Upload Flow ────────────────────────────────────────────────
+@app.route("/api/upload-url", methods=["GET", "OPTIONS"])
+def api_upload_url():
+    """Return a presigned PUT URL for direct browser→R2 upload."""
+    client = get_r2_client()
+    if not client:
+        return jsonify({"error": "Storage not configured"}), 503
+
+    filename = request.args.get("filename", "upload.xlsx")
+    content_type = request.args.get("content_type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+
+    # Build a unique R2 key with timestamp to avoid collisions
+    import time, uuid
+    key = f"uploads/{int(time.time())}_{uuid.uuid4().hex[:8]}_{filename}"
+
+    try:
+        presigned = client.generate_presigned_url(
+            "put_object",
+            Params={
+                "Bucket": R2_BUCKET,
+                "Key": key,
+                "ContentType": content_type,
+            },
+            ExpiresIn=3600,   # 1 hour
+        )
+        return jsonify({
+            "upload_url": presigned,
+            "key": key,
+            "bucket": R2_BUCKET,
+        })
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
+@app.route("/api/upload-complete", methods=["POST", "OPTIONS"])
+def api_upload_complete():
+    """After browser PUTs to R2, call this to download & process the file."""
+    client = get_r2_client()
+    if not client:
+        return jsonify({"error": "Storage not configured"}), 503
+
+    data = request.get_json() or {}
+    key = data.get("key", "").strip()
+    filename = data.get("filename", "upload.xlsx")
+
+    if not key:
+        return jsonify({"error": "Missing 'key'"}), 400
+
+    try:
+        # Download from R2
+        response = client.get_object(Bucket=R2_BUCKET, Key=key)
+        file_bytes = response["Body"].read()
+
+        # Decompress if needed
+        if filename.endswith(".gz"):
+            xlsx_data = gzip.decompress(file_bytes)
+        else:
+            xlsx_data = file_bytes
+
+        # Parse & validate
+        headers, rows = parse_xlsx(xlsx_data)
+        if not headers:
+            return jsonify({"error": "Failed to parse Excel"}), 400
+
+        # Save as gzip locally
+        script_dir = os.path.dirname(os.path.abspath(__file__))
+        xlsx_gz_path = os.path.join(script_dir, "data.xlsx.gz")
+        xlsx_path = os.path.join(script_dir, "data.xlsx")
+        with gzip.open(xlsx_gz_path, "wb") as f:
+            f.write(xlsx_data)
+        with open(xlsx_path, "wb") as f:
+            f.write(xlsx_data)
+
+        # Rebuild DB
+        if os.path.exists(DB_PATH):
+            os.remove(DB_PATH)
+        conn, err, _ = ensure_db()
+        if conn:
+            conn.close()
+
+        # Clean up R2 object
+        try:
+            client.delete_object(Bucket=R2_BUCKET, Key=key)
+        except Exception:
+            pass  # non-fatal
+
+        return jsonify({
+            "success": True,
+            "filename": filename,
+            "rows": len(rows),
+            "columns": headers,
+            "sample": [{h: (rows[j][i] if i < len(rows[j]) else "") for i, h in enumerate(headers)}
+                       for j in range(min(3, len(rows)))],
+        })
+    except client.exceptions.NoSuchKey:
+        return jsonify({"error": "File not found in storage"}), 404
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 
 @app.route("/", defaults={"path": ""})
