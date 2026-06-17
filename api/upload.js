@@ -1,7 +1,10 @@
-// Edge Function: 搶在Vercel proxy之前處理CORS preflight（只有OPTIONS）
-// POST 等非OPTIONS 請求由 Python serverless 處理
-// 注意：Edge Functions 的 matcher 可以精確控制哪些路徑/方法
-// 這裡用 /api/upload 和 /api/upload-file 的 OPTIONS preflight 專門處理
+// Edge Function: 專門處理 /api/upload 和 /api/upload-* 路徑的 CORS preflight
+// POST 等由 Python serverless 處理
+// 注意：/api/upload（無額外path）也要匹配 → 用 /api/upload*
+
+export const config = {
+  matcher: ['/api/upload*'],
+};
 
 export default async function handler(req) {
   if (req.method === 'OPTIONS') {
@@ -15,7 +18,7 @@ export default async function handler(req) {
       },
     });
   }
-  // For GET/POST: let the request continue to the origin
-  // Vercel will route it based on vercel.json → /api/index.py
-  return fetch(req, { signal: AbortSignal.timeout(30000) });
+  // For non-OPTIONS requests, forward to origin
+  // Vercel routes this to the Python serverless function (index.py)
+  return fetch(req);
 }
