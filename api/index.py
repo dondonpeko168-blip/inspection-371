@@ -455,6 +455,17 @@ def api_upload_file():
             return jsonify({"error": "No file selected"}), 400
         file_bytes = file.read()
         filename = file.filename
+    elif request.content_type and 'text/plain' in request.content_type:
+        # Base64 text sent by browser (CORS simple, no preflight needed)
+        raw_data = request.get_data()
+        if not raw_data:
+            return jsonify({"error": "No data"}), 400
+        try:
+            import base64 as _b64
+            file_bytes = _b64.b64decode(raw_data.decode("utf-8").strip())
+        except Exception as e:
+            return jsonify({"error": "Invalid base64: " + str(e)}), 400
+        filename = "upload.xlsx"
     else:
         raw_data = request.get_data()
         if not raw_data:

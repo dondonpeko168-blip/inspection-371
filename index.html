@@ -308,11 +308,20 @@ async function uploadFile(file) {
     }
   } else {
     // ── Direct upload (small file → Vercel) ────────────────────────────────
+    // text/plain is CORS-simple → NO preflight needed
     showToast('上傳中: ' + file.name);
-    const formData = new FormData();
-    formData.append('file', file);
+    const arrayBuffer = await file.arrayBuffer();
+    const uint8 = new Uint8Array(arrayBuffer);
+    // Binary string then base64 (handles all bytes correctly)
+    let binary = '';
+    for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+    const b64data = btoa(binary);
     try {
-      const resp = await fetch('/api/upload', { method: 'POST', body: formData });
+      const resp = await fetch('/api/upload-file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: b64data,
+      });
       const data = await resp.json().catch(() => ({ error: '伺服器回應格式錯誤' }));
       if (resp.ok && data.success) {
         showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
