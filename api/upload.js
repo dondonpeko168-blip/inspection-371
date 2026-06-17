@@ -3,7 +3,8 @@
 // POST/GET 由 Vercel rewrite → Python serverless function
 
 export const config = {
-  matcher: ['/api/upload', '/api/upload-file', '/api/upload-url', '/api/upload-complete'],
+  // Only /api/upload needs Edge for preflight. /api/upload-file goes straight to Python.
+  matcher: ['/api/upload'],
 };
 
 export default async function handler(req) {
