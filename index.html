@@ -248,13 +248,14 @@ function updateSelectedCount() {
 function batchExport() {
   const keyword = currentKeyword;
   let url = '/api/export';
-  const body = { format: 'json', text: keyword };
+  const format = 'csv';  // CSV — 直接在瀏覽器開啟或用 Excel 開啟
+  const body = { format, text: keyword };
   fetch(url, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) })
     .then(r=>r.blob())
     .then(blob=>{
       const a=document.createElement('a'); a.href=URL.createObjectURL(blob);
-      a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.json'; a.click();
-      showToast('匯出成功');
+      a.download='inspection_export_'+new Date().toISOString().slice(0,10)+'.csv'; a.click();
+      showToast('匯出成功（CSV）');
     })
     .catch(e=>showToast('匯出失敗：'+e.message));
 }
