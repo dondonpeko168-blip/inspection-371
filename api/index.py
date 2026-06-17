@@ -190,6 +190,16 @@ def row_to_dict(row, headers):
     return d
 
 
+@app.before_request
+def handle_OPTIONS():
+    """Handle CORS preflight before Flask tries to route the OPTIONS request."""
+    if request.method == "OPTIONS":
+        resp = app.make_response("")
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        return resp
+
 @app.after_request
 def add_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
