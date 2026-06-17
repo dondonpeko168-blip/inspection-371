@@ -370,6 +370,69 @@ def api_export():
     return jsonify({"error": "Unsupported format"}), 400
 
 
+# --- Upload: base64 via text/plain (CORS simple, no preflight) ---
+@app.route("/api/upload-base64", methods=["POST"])
+def api_upload_base64():
+    """Accept base64 xlsx via text/plain body. text/plain is a CORS simple
+    content-type → browser sends POST without OPTIONS preflight."""
+    content_type = request.content_type or ""
+    if "text/plain" in content_type:
+        # Body is raw base64 string
+        raw_body = request.get_data()
+        if not raw_body:
+            return jsonify({"error": "No data"}), 400
+        try:
+            import base64 as _b64
+            file_bytes = _b64.b64decode(raw_body.decode("utf-8").strip())
+        except Exception as e:
+            return jsonify({"error": "Invalid base64: " + str(e)}), 400
+        return _process_xlsx_bytes(file_bytes, "upload.xlsx")
+    else:
+        return jsonify({"error": "Expected Content-Type: text/plain"}), 400
+
+
+def _process_xlsx_bytes(file_bytes, filename):
+    """Parse xlsx bytes, write data.xlsx.gz, invalidate DB, return JSON."""
+    import gzip, openpyxl, os as _os
+    script_dir = _os.path.dirname(_os.path.abspath(__file__))
+    xlsx_gz_path = _os.path.join(script_dir, "data.xlsx.gz")
+    xlsx_path = _os.path.join(script_dir, "data.xlsx")
+    db_path = "/tmp/insp_371.db"
+
+    try:
+        wb = openpyxl.load_workbook(_io.BytesIO(file_bytes), read_only=True)
+        ws = wb.active
+        headers = [str(cell.value).strip() if cell.value is not None else f"col_{i}"
+                   for i, cell in enumerate(next(ws.iter_rows(min_row=1, max_row=1)))]
+        rows = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            r = [str(v) if v is not None else "" for v in row]
+            while len(r) < len(headers): r.append("")
+            rows.append(r[:len(headers)])
+        wb.close()
+        count = len(rows)
+    except Exception as e:
+        return jsonify({"error": "Failed to parse xlsx: " + str(e)}), 400
+
+    # Write gzip
+    try:
+        with gzip.open(xlsx_gz_path, "wb", compresslevel=6) as gz:
+            gz.write(file_bytes)
+        with open(xlsx_path, "wb") as f:
+            f.write(file_bytes)
+        try: _os.remove(db_path)
+        except: pass
+    except Exception as e:
+        return jsonify({"error": "File write error: " + str(e)}), 500
+
+    sample = rows[:3]
+    return jsonify({
+        "success": True, "filename": filename,
+        "rows": count, "columns": headers,
+        "sample": [dict(zip(headers, r)) for r in sample],
+    })
+
+
 # --- Upload: handle multipart/form-data ---
 @app.route("/api/upload", methods=["POST", "OPTIONS"])
 def api_upload():
