@@ -433,10 +433,9 @@ def _process_xlsx_bytes(file_bytes, filename):
     })
 
 
-# --- Upload: handle multipart/form-data ---
-@app.route("/api/upload", methods=["POST", "OPTIONS"])
-def api_upload():
-    # Explicit OPTIONS handler so Vercel proxy can answer preflight without hitting Python
+# --- Upload (new path, avoids any cached 501 from edge): handle multipart/form-data ---
+@app.route("/api/upload-file", methods=["POST", "OPTIONS"])
+def api_upload_file():
     if request.method == "OPTIONS":
         resp = make_response("")
         resp.headers["Access-Control-Allow-Origin"] = "*"
