@@ -1,8 +1,5 @@
 {
   "rewrites": [
-    { "source": "/api/upload", "destination": "/api/upload.js" },
-    { "source": "/api/upload-url", "destination": "/api/upload-url.js" },
-    { "source": "/api/upload-complete", "destination": "/api/upload-complete.js" },
     { "source": "/api/(.*)", "destination": "/api/index.py" },
     { "source": "/(.*)", "destination": "/api/proxy" }
   ]

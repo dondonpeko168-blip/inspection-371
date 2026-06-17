@@ -309,17 +309,10 @@ async function uploadFile(file) {
   } else {
     // ── Direct upload (small file → Vercel) ────────────────────────────────
     showToast('上傳中: ' + file.name);
-    // Base64-encode and send as text/plain — CORS simple content-type, NO preflight needed
-    const arrayBuffer = await file.arrayBuffer();
-    const uint8 = new Uint8Array(arrayBuffer);
-    const binary = String.fromCharCode(...uint8);
-    const btoa_str = btoa(binary);
+    const formData = new FormData();
+    formData.append('file', file);
     try {
-      const resp = await fetch('/api/upload-base64', {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: btoa_str,
-      });
+      const resp = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await resp.json().catch(() => ({ error: '伺服器回應格式錯誤' }));
       if (resp.ok && data.success) {
         showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
