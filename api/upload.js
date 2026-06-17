@@ -3,7 +3,7 @@
 // 注意：/api/upload（無額外path）也要匹配 → 用 /api/upload*
 
 export const config = {
-  matcher: ['/api/upload*'],
+  matcher: ['/api/upload', '/api/upload-file', '/api/upload-url', '/api/upload-complete', '/api/upload*'],
 };
 
 export default async function handler(req) {
