@@ -304,7 +304,7 @@ async function uploadFile(file) {
       document.getElementById('uploadResult').innerHTML =
         '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' +
         completeData.rows.toLocaleString() + ' 列，' + completeData.columns.length + ' 欄<br>自動重新載入中…</div>';
-      setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; loadData(); }, 1500);
+      setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; // loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料 }, 1500);
     } catch(e) {
       showToast('❌ 上傳失敗：' + e.message);
       console.error(e);
@@ -320,7 +320,7 @@ async function uploadFile(file) {
       if (data.success) {
         showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
         document.getElementById('uploadResult').innerHTML = '<div style="margin-top:8px;padding:8px;background:#e8f5e9;border-radius:4px;font-size:12px">✅ 上傳成功：' + data.rows.toLocaleString() + ' 列，' + data.columns.length + ' 欄<br>自動重新載入中…</div>';
-        setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; loadData(); }, 1500);
+        setTimeout(() => { currentKeyword = ''; document.getElementById('searchInput').value = ''; // loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料 }, 1500);
       } else {
         showToast('❌ 上傳失敗：' + (data.error || '未知錯誤'));
       }
@@ -330,7 +330,7 @@ async function uploadFile(file) {
   }
 }
 
-loadData();
+// loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料
 </script>
 </body>
 </html>
