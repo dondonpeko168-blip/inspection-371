@@ -619,4 +619,4 @@ def catch_all(path):
 
 
 # Vercel entry point
-handler = app.wsgi_app
+handler = app.wsgi_app# force rebuild
