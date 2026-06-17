@@ -6,7 +6,7 @@ import gzip
 import io
 import boto3
 from botocore.config import Config as BotoConfig
-from flask import Flask, request, jsonify, Response, send_from_directory
+from flask import Flask, request, jsonify, Response, send_from_directory, make_response
 
 app = Flask(__name__, static_folder="../")
 
@@ -373,6 +373,13 @@ def api_export():
 # --- Upload: handle multipart/form-data ---
 @app.route("/api/upload", methods=["POST", "OPTIONS"])
 def api_upload():
+    # Explicit OPTIONS handler so Vercel proxy can answer preflight without hitting Python
+    if request.method == "OPTIONS":
+        resp = make_response("")
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        return resp
     script_dir = os.path.dirname(os.path.abspath(__file__))
     xlsx_gz_path = os.path.join(script_dir, "data.xlsx.gz")
     xlsx_path = os.path.join(script_dir, "data.xlsx")
