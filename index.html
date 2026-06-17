@@ -312,7 +312,7 @@ async function uploadFile(file) {
     const formData = new FormData();
     formData.append('file', file);
     try {
-      const resp = await fetch('/api/upload-file', { method: 'POST', body: formData });
+      const resp = await fetch('/api/upload', { method: 'POST', body: formData });
       const data = await resp.json().catch(() => ({ error: '伺服器回應格式錯誤' }));
       if (resp.ok && data.success) {
         showToast('✅ 上傳成功！' + data.rows.toLocaleString() + ' 筆資料');
