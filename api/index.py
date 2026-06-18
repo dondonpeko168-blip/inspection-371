@@ -522,6 +522,21 @@ def api_upload_file():
     })
 
 
+# ── /api/upload: legacy endpoint — Vercel Edge needs explicit OPTIONS route ──
+@app.route("/api/upload", methods=["GET", "POST", "OPTIONS"])
+def api_upload():
+    """Legacy upload endpoint. OPTIONS handled at edge by this Python route."""
+    if request.method == "OPTIONS":
+        resp = make_response("")
+        resp.headers["Access-Control-Allow-Origin"] = "*"
+        resp.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Max-Age"] = "86400"
+        return resp
+    # Redirect GET/POST to the proper handlers
+    return jsonify({"message": "Use /api/upload-file for small files or /api/upload-url for large files"}), 200
+
+
 # ── Presigned-URL Upload Flow (maintains backward compat) ────────────────────
 @app.route("/api/upload-url", methods=["GET", "OPTIONS"])
 def api_upload_url():
