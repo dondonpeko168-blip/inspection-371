@@ -32,7 +32,7 @@ def get_r2_client():
             aws_access_key_id=R2_ACCESS_KEY,
             aws_secret_access_key=R2_SECRET_KEY,
             region_name="auto",
-            config=BotoConfig(s3={"addressing_style": "virtual"}),
+            config=BotoConfig(s3={"addressing_style": "path"}),
         )
     return _r2_client
 
