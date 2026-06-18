@@ -644,5 +644,109 @@ def catch_all(path):
     return send_from_directory("../", "index.html")
 
 
+# ── Filter + Export: Upload Excel → Filter by keywords → Download ─────────────
+@app.route("/api/filter-upload", methods=["POST", "OPTIONS"])
+@app.route("/api/filter", methods=["POST", "OPTIONS"])
+def api_filter_upload():
+    """Accept Excel file + keywords, filter rows, return CSV/XLSX download.
+    Works for files up to ~50MB. Uses streaming where possible."""
+    if request.method == "OPTIONS":
+        resp = make_response("")
+        resp.headers["Access-Control-Allow-Origin"] = "https://inspection-371.vercel.app"
+        resp.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+        resp.headers["Access-Control-Allow-Headers"] = "Content-Type"
+        resp.headers["Access-Control-Max-Age"] = "86400"
+        return resp
+
+    # ── Parse form data ─────────────────────────────────────────────────────
+    if request.content_type and 'multipart/form-data' in request.content_type:
+        file = request.files.get('file')
+        keywords = request.form.get('keywords', '').strip()
+        export_format = request.form.get('format', 'csv').lower()
+    else:
+        data = request.get_json(silent=True) or {}
+        file = None
+        keywords = data.get('keywords', '')
+        export_format = data.get('format', 'csv').lower()
+
+    if not file:
+        return jsonify({"error": "No file uploaded"}), 400
+    if not keywords:
+        return jsonify({"error": "請輸入關鍵字（keywords）"}), 400
+    if export_format not in ('csv', 'xlsx'):
+        return jsonify({"error": "format 僅支援 csv 或 xlsx"}), 400
+
+    try:
+        file_bytes = file.read()
+    except Exception as e:
+        return jsonify({"error": f"讀取檔案失敗: {e}"}), 400
+
+    # ── Parse Excel ─────────────────────────────────────────────────────────
+    try:
+        import openpyxl as _openpyxl
+        wb = _openpyxl.load_workbook(_io.BytesIO(file_bytes), read_only=True, data_only=True)
+        ws = wb.active
+        hdr_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
+        headers = [str(h).strip() if h is not None else f"col_{i}"
+                   for i, h in enumerate(hdr_row)]
+        keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
+        filtered = []
+        for row in ws.iter_rows(min_row=2, values_only=True):
+            row_text = " ".join(str(v) for v in row if v is not None).lower()
+            if all(kw.lower() in row_text for kw in keyword_list):
+                filtered.append([str(v) if v is not None else "" for v in row])
+        wb.close()
+    except Exception as e:
+        return jsonify({"error": f"Excel 解析失敗: {e}"}), 400
+
+    if not filtered:
+        return jsonify({"error": "沒有找到符合的資料"}), 404
+
+    # ── Export ──────────────────────────────────────────────────────────────
+    total_rows = len(filtered)
+
+    if export_format == "csv":
+        import csv as _csv
+        output = _io.StringIO()
+        writer = _csv.writer(output)
+        writer.writerow(headers)
+        writer.writerows(filtered)
+        result_bytes = output.getvalue().encode("utf-8-sig")
+        return Response(
+            result_bytes,
+            mimetype="text/csv; charset=utf-8-sig",
+            headers={
+                "Content-Disposition": f"attachment; filename=filtered_{len(filtered)}_rows.csv",
+                "Content-Length": str(len(result_bytes)),
+                "X-Filtered-Count": str(total_rows),
+            }
+        )
+    else:  # xlsx
+        import openpyxl
+        from openpyxl.styles import Font
+        wb2 = openpyxl.Workbook()
+        ws2 = wb2.active
+        hdr_font = Font(bold=True)
+        for ci, h in enumerate(headers, 1):
+            c = ws2.cell(row=1, column=ci, value=h)
+            c.font = hdr_font
+        for ri, row in enumerate(filtered, 2):
+            for ci, val in enumerate(row, 1):
+                ws2.cell(row=ri, column=ci, value=val)
+        buf = _io.BytesIO()
+        wb2.save(buf)
+        buf.seek(0)
+        result_bytes = buf.getvalue()
+        return Response(
+            result_bytes,
+            mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            headers={
+                "Content-Disposition": f"attachment; filename=filtered_{len(filtered)}_rows.xlsx",
+                "Content-Length": str(len(result_bytes)),
+                "X-Filtered-Count": str(total_rows),
+            }
+        )
+
+
 # Vercel entry point
-handler = app.wsgi_app# force rebuild
+handler = app.wsgi_app  # force rebuild

@@ -68,6 +68,22 @@ header .sub { font-size: 13px; opacity: .8; }
 <div class="card"><h3>🔍 搜尋條件</h3><div class="search-box"><input type="text" id="searchInput" placeholder="輸入車號、工項名稱、檢修狀態… (任意關鍵字)" oninput="filterResults()"><div class="search-hint">支援車號、工項名稱、檢修狀態、檢查人員等</div></div>
 <div class="filter-actions"><button class="btn-primary" onclick="selectAllVisible()">全選</button><button class="btn-outline" onclick="deselectAll()">清除選擇</button><button class="btn-outline" onclick="clearFilters()">清除篩選</button></div>
 <div class="card" style="margin-top:12px"><h3>📦 批次動作</h3><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="batchExport()">📥 匯出選擇 (JSON)</button><button class="btn-primary" style="width:100%;margin-bottom:6px" onclick="document.getElementById('uploadInput').click()">📤 上傳 Excel 檔案</button><input type="file" id="uploadInput" accept=".xlsx" style="display:none" onchange="uploadFile(this.files[0])"><div id="uploadResult"></div></div>
+<div class="card" style="margin-top:0"><h3>📥 篩選下載（上傳 Excel）</h3>
+  <div style="font-size:12px;color:#888;margin-bottom:8px">上傳 Excel 檔案，輸入關鍵字，直接下載符合條件的結果</div>
+  <input type="file" id="filterFileInput" accept=".xlsx" style="display:none" onchange="filterUploadFile(this.files[0])">
+  <div style="margin-bottom:6px">
+    <input type="text" id="filterKeywords" placeholder="關鍵字（多個用逗號分隔）" style="width:100%;padding:7px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box">
+  </div>
+  <div style="display:flex;gap:6px;margin-bottom:6px">
+    <select id="filterFormat" style="flex:1;padding:7px 6px;border:1px solid #ddd;border-radius:6px;font-size:13px">
+      <option value="csv">CSV（UTF-8BOM）</option>
+      <option value="xlsx">Excel（.xlsx）</option>
+    </select>
+  </div>
+  <button class="btn-primary" style="width:100%;margin-bottom:4px" onclick="document.getElementById('filterFileInput').click()">📁 選擇 Excel 檔案</button>
+  <button class="btn-outline" style="width:100%" id="filterDownloadBtn" onclick="doFilterUpload()">🔍 過濾並下載結果</button>
+  <div id="filterUploadResult" style="margin-top:6px;font-size:12px"></div>
+</div>
 <div class="card" style="margin-top:0"><h3>📋 選取統計</h3><div class="stats"><span id="selectedCount">0</span> / <span id="totalCount">0</span> 筆記錄</div></div>
 </div>
 <div class="main-content">
@@ -342,6 +358,73 @@ async function uploadFile(file) {
 }
 
 // loadData(); // ← 移除自動載入，改為空白狀態，使用者搜尋後才顯示資料
+
+// ── Filter Upload State ─────────────────────────────────────────────────────
+let _filterFile = null;
+function filterUploadFile(file) {
+  _filterFile = file;
+  const el = document.getElementById('filterUploadResult');
+  if (!file) { el.innerHTML = ''; return; }
+  if (!file.name.endsWith('.xlsx')) {
+    el.innerHTML = '<span style="color:#c62828">⚠️ 僅支援 .xlsx 格式</span>';
+    _filterFile = null;
+    return;
+  }
+  el.innerHTML = '<span style="color:#2e7d32">✅ 已選擇：' + file.name + '（' + (file.size/1024/1024).toFixed(1) + 'MB）</span>';
+}
+
+async function doFilterUpload() {
+  const file = _filterFile;
+  const keywords = document.getElementById('filterKeywords').value.trim();
+  const format = document.getElementById('filterFormat').value;
+  const resultEl = document.getElementById('filterUploadResult');
+
+  if (!file) { showToast('請先選擇 Excel 檔案'); return; }
+  if (!keywords) { showToast('請輸入關鍵字'); return; }
+
+  const btn = document.getElementById('filterDownloadBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ 處理中…';
+  resultEl.innerHTML = '<span>上傳並過濾中…（' + (file.size/1024/1024).toFixed(1) + 'MB）</span>';
+
+  try {
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('keywords', keywords);
+    formData.append('format', format);
+
+    const resp = await fetch('/api/filter-upload', { method: 'POST', body: formData });
+    const ct = resp.headers.get('Content-Type') || '';
+
+    if (resp.ok && ct.includes('text/csv')) {
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = 'filtered_' + keywords.replace(/,/g,'_') + '.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+      const count = resp.headers.get('X-Filtered-Count') || '?';
+      resultEl.innerHTML = '<span style="color:#2e7d32">✅ 下載完成！共 ' + count + ' 筆記錄</span>';
+    } else if (resp.ok && ct.includes('spreadsheetml')) {
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url;
+      a.download = 'filtered_' + keywords.replace(/,/g,'_') + '.xlsx';
+      a.click();
+      URL.revokeObjectURL(url);
+      const count = resp.headers.get('X-Filtered-Count') || '?';
+      resultEl.innerHTML = '<span style="color:#2e7d32">✅ 下載完成！共 ' + count + ' 筆記錄</span>';
+    } else {
+      const err = await resp.json().catch(() => ({ error: '未知錯誤' }));
+      resultEl.innerHTML = '<span style="color:#c62828">❌ ' + (err.error || 'HTTP ' + resp.status) + '</span>';
+    }
+  } catch(e) {
+    resultEl.innerHTML = '<span style="color:#c62828">❌ 網路錯誤：' + e.message + '</span>';
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🔍 過濾並下載結果';
+  }
+}
 </script>
 </body>
 </html>
