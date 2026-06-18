@@ -648,8 +648,7 @@ def catch_all(path):
 @app.route("/api/filter-upload", methods=["POST", "OPTIONS"])
 @app.route("/api/filter", methods=["POST", "OPTIONS"])
 def api_filter_upload():
-    """Accept Excel file + keywords, filter rows, return CSV/XLSX download.
-    Works for files up to ~50MB. Uses streaming where possible."""
+    """Accept Excel file + keywords, filter rows, return CSV/XLSX download."""
     if request.method == "OPTIONS":
         resp = make_response("")
         resp.headers["Access-Control-Allow-Origin"] = "https://inspection-371.vercel.app"
@@ -658,33 +657,33 @@ def api_filter_upload():
         resp.headers["Access-Control-Max-Age"] = "86400"
         return resp
 
-    # ── Parse form data ─────────────────────────────────────────────────────
+    # Parse form data
     if request.content_type and 'multipart/form-data' in request.content_type:
-        file = request.files.get('file')
+        uploaded_file = request.files.get('file')
         keywords = request.form.get('keywords', '').strip()
-        export_format = request.form.get('format', 'csv').lower()
+        export_fmt = request.form.get('format', 'csv').lower()
     else:
         data = request.get_json(silent=True) or {}
-        file = None
+        uploaded_file = None
         keywords = data.get('keywords', '')
-        export_format = data.get('format', 'csv').lower()
+        export_fmt = data.get('format', 'csv').lower()
 
-    if not file:
+    if not uploaded_file:
         return jsonify({"error": "No file uploaded"}), 400
     if not keywords:
         return jsonify({"error": "請輸入關鍵字（keywords）"}), 400
-    if export_format not in ('csv', 'xlsx'):
+    if export_fmt not in ('csv', 'xlsx'):
         return jsonify({"error": "format 僅支援 csv 或 xlsx"}), 400
 
     try:
-        file_bytes = file.read()
+        file_bytes = uploaded_file.read()
     except Exception as e:
         return jsonify({"error": f"讀取檔案失敗: {e}"}), 400
 
-    # ── Parse Excel ─────────────────────────────────────────────────────────
+    # Parse Excel
     try:
-        import openpyxl as _openpyxl
-        wb = _openpyxl.load_workbook(_io.BytesIO(file_bytes), read_only=True, data_only=True)
+        import openpyxl
+        wb = openpyxl.load_workbook(io.BytesIO(file_bytes), read_only=True, data_only=True)
         ws = wb.active
         hdr_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True))
         headers = [str(h).strip() if h is not None else f"col_{i}"
@@ -702,12 +701,11 @@ def api_filter_upload():
     if not filtered:
         return jsonify({"error": "沒有找到符合的資料"}), 404
 
-    # ── Export ──────────────────────────────────────────────────────────────
     total_rows = len(filtered)
 
-    if export_format == "csv":
+    if export_fmt == "csv":
         import csv as _csv
-        output = _io.StringIO()
+        output = io.StringIO()
         writer = _csv.writer(output)
         writer.writerow(headers)
         writer.writerows(filtered)
@@ -716,24 +714,23 @@ def api_filter_upload():
             result_bytes,
             mimetype="text/csv; charset=utf-8-sig",
             headers={
-                "Content-Disposition": f"attachment; filename=filtered_{len(filtered)}_rows.csv",
-                "Content-Length": str(len(result_bytes)),
+                "Content-Disposition": f"attachment; filename=filtered_{total_rows}_rows.csv",
                 "X-Filtered-Count": str(total_rows),
             }
         )
-    else:  # xlsx
-        import openpyxl
+    else:
+        import openpyxl as _xlsx
         from openpyxl.styles import Font
-        wb2 = openpyxl.Workbook()
+        wb2 = _xlsx.Workbook()
         ws2 = wb2.active
         hdr_font = Font(bold=True)
         for ci, h in enumerate(headers, 1):
-            c = ws2.cell(row=1, column=ci, value=h)
-            c.font = hdr_font
+            cell = ws2.cell(row=1, column=ci, value=h)
+            cell.font = hdr_font
         for ri, row in enumerate(filtered, 2):
             for ci, val in enumerate(row, 1):
                 ws2.cell(row=ri, column=ci, value=val)
-        buf = _io.BytesIO()
+        buf = io.BytesIO()
         wb2.save(buf)
         buf.seek(0)
         result_bytes = buf.getvalue()
@@ -741,8 +738,7 @@ def api_filter_upload():
             result_bytes,
             mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
             headers={
-                "Content-Disposition": f"attachment; filename=filtered_{len(filtered)}_rows.xlsx",
-                "Content-Length": str(len(result_bytes)),
+                "Content-Disposition": f"attachment; filename=filtered_{total_rows}_rows.xlsx",
                 "X-Filtered-Count": str(total_rows),
             }
         )
