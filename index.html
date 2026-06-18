@@ -324,17 +324,11 @@ async function uploadFile(file) {
     }
   } else {
     // ── Direct upload (small file → Vercel) ────────────────────────────────
-    // Compress with gzip to bypass 4.5MB Vercel body limit
-    showToast('壓縮中: ' + file.name);
+    // text/plain is CORS-simple → NO preflight needed
+    showToast('上傳中: ' + file.name);
     const arrayBuffer = await file.arrayBuffer();
-
-    // Use Compression Streams API (native gzip in browser)
-    const compressedStream = new Response(arrayBuffer).body
-      .pipeThrough(new CompressionStream('gzip'));
-    const compressedBuffer = await new Response(compressedStream).arrayBuffer();
-
-    showToast('上傳中: ' + (compressedBuffer.length / 1024).toFixed(0) + 'KB（壓縮後）');
-    const uint8 = new Uint8Array(compressedBuffer);
+    const uint8 = new Uint8Array(arrayBuffer);
+    // Binary string then base64 (handles all bytes correctly)
     let binary = '';
     for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
     const b64data = btoa(binary);
