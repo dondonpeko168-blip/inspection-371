@@ -522,7 +522,7 @@ def api_upload_file():
     })
 
 
-# ── Presigned-URL Upload Flow ────────────────────────────────────────────────
+# ── Presigned-URL Upload Flow (maintains backward compat) ────────────────────
 @app.route("/api/upload-url", methods=["GET", "OPTIONS"])
 def api_upload_url():
     """Return a presigned PUT URL for direct browser→R2 upload."""
