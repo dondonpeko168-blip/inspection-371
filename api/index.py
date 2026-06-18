@@ -658,27 +658,53 @@ def api_filter_upload():
         return resp
 
     # Parse form data
+    # Support three modes:
+    # 1. multipart/form-data (direct xlsx or gzip-xlsx)
+    # 2. application/json with base64+gzip file
+    # 3. text/plain with base64+gzip file (CORS-simple, no preflight)
     if request.content_type and 'multipart/form-data' in request.content_type:
         uploaded_file = request.files.get('file')
         keywords = request.form.get('keywords', '').strip()
         export_fmt = request.form.get('format', 'csv').lower()
+        file_bytes = uploaded_file.read() if uploaded_file else None
+    elif request.content_type and 'text/plain' in request.content_type:
+        # base64-encoded gzip-compressed xlsx (CORS simple → no preflight)
+        raw_body = request.get_data()
+        if raw_body and len(raw_body) < 50 * 1024 * 1024:  # 50MB decompressed cap
+            try:
+                import base64 as _b64
+                decoded = _b64.b64decode(raw_body.decode("utf-8").strip())
+                # Detect gzip by magic bytes
+                if decoded[:2] == b'\x1f\x8b':
+                    file_bytes = gzip.decompress(decoded)
+                else:
+                    file_bytes = decoded
+            except Exception as e:
+                return jsonify({"error": "Invalid base64/gzip data: " + str(e)}), 400
+        else:
+            file_bytes = None
+        keywords = request.args.get('keywords', '').strip()
+        export_fmt = request.args.get('format', 'csv').lower()
     else:
         data = request.get_json(silent=True) or {}
-        uploaded_file = None
+        file_b64 = data.get('file_base64', '')
         keywords = data.get('keywords', '')
         export_fmt = data.get('format', 'csv').lower()
-
-    if not uploaded_file:
-        return jsonify({"error": "No file uploaded"}), 400
+        if file_b64:
+            try:
+                import base64 as _b64
+                decoded = _b64.b64decode(file_b64)
+                file_bytes = gzip.decompress(decoded) if decoded[:2] == b'\x1f\x8b' else decoded
+            except Exception as e:
+                return jsonify({"error": "Invalid file data: " + str(e)}), 400
+        else:
+            file_bytes = None
     if not keywords:
         return jsonify({"error": "請輸入關鍵字（keywords）"}), 400
     if export_fmt not in ('csv', 'xlsx'):
         return jsonify({"error": "format 僅支援 csv 或 xlsx"}), 400
-
-    try:
-        file_bytes = uploaded_file.read()
-    except Exception as e:
-        return jsonify({"error": f"讀取檔案失敗: {e}"}), 400
+    if not file_bytes:
+        return jsonify({"error": "No file uploaded"}), 400
 
     # Parse Excel
     try:

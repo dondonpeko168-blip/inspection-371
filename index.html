@@ -391,15 +391,36 @@ async function doFilterUpload() {
   const btn = document.getElementById('filterDownloadBtn');
   btn.disabled = true;
   btn.textContent = '⏳ 處理中…';
-  resultEl.innerHTML = '<span>上傳並過濾中…（' + (file.size/1024/1024).toFixed(1) + 'MB）</span>';
+  resultEl.innerHTML = '<span>壓縮中：' + file.name + '</span>';
 
   try {
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('keywords', keywords);
-    formData.append('format', format);
+    // ── Step 1: Read + gzip compress in browser ──────────────────────────
+    const fileBuffer = await file.arrayBuffer();
+    const compressed = new Response(
+      new Response(fileBuffer).body.pipeThrough(new CompressionStream('gzip'))
+    ).blob();
+    const fileSizeKb = (file.size / 1024).toFixed(0);
+    const compSizeKb = (await compressed.then(b => b.size) / 1024).toFixed(0);
+    resultEl.innerHTML = `<span>上傳中（${fileSizeKb}KB → ${compSizeKb}KB）…</span>`;
 
-    const resp = await fetch('/api/filter-upload', { method: 'POST', body: formData });
+    // ── Step 2: Upload as base64 text/plain (no preflight, no body limit) ─
+    const compressedBuffer = await compressed.then(b => b.arrayBuffer());
+    const uint8 = new Uint8Array(compressedBuffer);
+    let binary = '';
+    for (let i = 0; i < uint8.length; i++) binary += String.fromCharCode(uint8[i]);
+    const b64data = btoa(binary);
+
+    const query = new URLSearchParams({
+      keywords: keywords,
+      format: format,
+    }).toString();
+
+    const resp = await fetch('/api/filter-upload?' + query, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' },
+      body: b64data,
+    });
+
     const ct = resp.headers.get('Content-Type') || '';
 
     if (resp.ok && ct.includes('text/csv')) {
