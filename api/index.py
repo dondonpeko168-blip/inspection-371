@@ -717,9 +717,16 @@ def api_filter_upload():
         keyword_list = [k.strip() for k in keywords.split(",") if k.strip()]
         filtered = []
         for row in ws.iter_rows(min_row=2, values_only=True):
-            row_text = " ".join(str(v) for v in row if v is not None).lower()
-            if all(kw.lower() in row_text for kw in keyword_list):
-                filtered.append([str(v) if v is not None else "" for v in row])
+            row_cells = [str(v) if v is not None else "" for v in row]
+            # Per-cell exact match: each keyword must be found in at least one cell
+            # (AND across keywords — all keywords must match somewhere in the row)
+            def cell_contains(keyword, cell_text):
+                return keyword in cell_text
+            if all(
+                any(cell_contains(kw.lower(), cell) for cell in row_cells)
+                for kw in keyword_list
+            ):
+                filtered.append(row_cells)
         wb.close()
     except Exception as e:
         return jsonify({"error": f"Excel 解析失敗: {e}"}), 400
